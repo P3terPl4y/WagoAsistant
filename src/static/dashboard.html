@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard · Wago</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <link rel="stylesheet" href="/assets/css/styles.css?v=3" />
+    <style>
+        body {
+            background: radial-gradient(circle at top left, rgba(16, 185, 129, 0.05) 0%, var(--color-bg-base) 60%);
+            min-height: 100vh;
+        }
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: 260px;
+            background: var(--color-bg-card);
+            border-right: 1px solid var(--color-border);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 40px;
+        }
+        .sidebar-brand img {
+            height: 40px;
+            width: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .sidebar-brand span {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--color-text-main);
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: var(--color-text-muted);
+            text-decoration: none;
+            border-radius: var(--radius-md);
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+        }
+        .nav-item:hover, .nav-item.active {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--color-primary);
+        }
+        .main-content {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+        .header-title h1 {
+            font-size: 2rem;
+            margin: 0 0 4px;
+        }
+        .header-title p {
+            color: var(--color-text-muted);
+            margin: 0;
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--color-primary);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .status-badge.active { background: rgba(16, 185, 129, 0.2); color: var(--color-primary); }
+        .status-badge.inactive { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        
+        .qr-container {
+            text-align: center;
+            padding: 20px;
+            background: #fff; /* QR needs white background */
+            border-radius: var(--radius-md);
+            display: none;
+            margin-top: 16px;
+        }
+        .qr-container img {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+        #loader {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: var(--color-text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <img src="https://copilot.microsoft.com/shares/XsBodgkpbrmLF5JjNvXrA" alt="Wago" />
+                <span>Wago</span>
+            </div>
+            <a href="#" class="nav-item active"><i class="fas fa-home"></i> Inicio</a>
+            <a href="#" class="nav-item"><i class="fas fa-robot"></i> Mis Bots</a>
+            <a href="#" class="nav-item" id="adminLink" style="display: none;"><i class="fas fa-shield-alt"></i> Admin Panel</a>
+            <div style="flex: 1;"></div>
+            <button id="logoutBtn" class="nav-item" style="background:transparent; border:none; width:100%; text-align:left; cursor:pointer;">
+                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+            </button>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <div class="header-title">
+                    <h1>Bienvenido, <span id="displayUser"></span></h1>
+                    <p>Gestiona tu asistente de WhatsApp automatizado</p>
+                </div>
+                <div class="user-profile">
+                    <button class="theme-toggle" id="themeToggle" aria-label="Cambiar tema">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <div class="user-avatar" id="avatarInitial">U</div>
+                    <div>
+                        <div style="font-weight:600;" id="profileEmail"></div>
+                        <div style="font-size:0.85rem; color:var(--color-text-muted);" id="profileRole"></div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="grid">
+                <!-- Bot Status Card -->
+                <div class="glass-card premium-card-body">
+                    <h3 style="margin-top:0;"><i class="fas fa-robot"></i> Estado del Bot</h3>
+                    <div style="margin: 16px 0;">
+                        Estado de conexión: <span id="connStatus" class="status-badge inactive">Desconectado</span>
+                    </div>
+                    <div style="margin: 16px 0;">
+                        Suscripción: <span id="payStatus" style="text-transform: capitalize; font-weight:600;">Free</span>
+                    </div>
+                    <div style="margin: 16px 0;">
+                        Cuota diaria: <span id="usageStats" style="font-weight:600;">0 / 10 mensajes</span>
+                    </div>
+                    <div style="margin: 16px 0;" id="upgradeBtnContainer">
+                        <button id="upgradeBtn" class="btn btn-secondary" style="width:100%; border-color: var(--color-primary); color: var(--color-primary);">
+                            <i class="fas fa-crown"></i> Hacer Upgrade a Pro
+                        </button>
+                    </div>
+                    <div id="botControls">
+                        <button id="startBotBtn" class="btn btn-primary" style="width:100%;">
+                            <i class="fas fa-qrcode"></i> Conectar WhatsApp
+                        </button>
+                    </div>
+                    <div id="loader"><i class="fas fa-spinner fa-spin fa-2x"></i><br><small>Generando QR...</small></div>
+                    <div id="qrBox" class="qr-container">
+                        <img id="qrImage" src="" alt="WhatsApp QR Code" />
+                        <p style="color:#333; margin-top:8px; font-size:0.9rem;">Escanea esto en WhatsApp > Dispositivos Vinculados</p>
+                    </div>
+                </div>
+
+                <!-- Prompt Config Card -->
+                <div class="glass-card premium-card-body">
+                    <h3 style="margin-top:0;"><i class="fas fa-brain"></i> Configuración de IA</h3>
+                    <p style="color:var(--color-text-muted); font-size:0.9rem;">Instrucciones para el asistente automatizado.</p>
+                    <form id="promptForm">
+                        <div class="form-group">
+                            <textarea id="promptText" class="form-control" rows="6" style="resize:vertical;" placeholder="Ej: Eres un asistente de ventas para Wago..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/assets/js/main.js?v=2"></script>
+    <script>
+        function getCsrfToken() {
+            const match = document.cookie.match(new RegExp('(^| )csrf_token=([^;]+)'));
+            return match ? match[2] : '';
+        }
+
+        // Initialize UI with injected variables
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof window.userDisplay !== 'undefined') {
+                document.getElementById('displayUser').textContent = window.userDisplay;
+                document.getElementById('avatarInitial').textContent = window.userDisplay.charAt(0).toUpperCase();
+                document.getElementById('profileEmail').textContent = window.userEmail;
+                document.getElementById('profileRole').textContent = window.userRole;
+                document.getElementById('payStatus').textContent = (window.tier === 'pro' || window.tier === 'enterprise') ? window.tier.toUpperCase() : 'FREE';
+                
+                let limitText = window.msgLimit === -1 ? '∞' : window.msgLimit;
+                document.getElementById('usageStats').textContent = `${window.usage} / ${limitText} mensajes`;
+                
+                if (window.tier !== 'free') {
+                    document.getElementById('upgradeBtnContainer').style.display = 'none';
+                }
+
+                if (window.userRole === 'admin') {
+                    document.getElementById('adminLink').style.display = 'flex';
+                }
+            }
+            checkBotStatus();
+        });
+
+        // Theme Toggle
+        const themeToggleBtn = document.getElementById('themeToggle');
+        if (themeToggleBtn) {
+            const icon = themeToggleBtn.querySelector('i');
+            const currentTheme = localStorage.getItem('theme') || 'dark';
+            if (currentTheme === 'light') {
+                document.documentElement.classList.add('light-theme');
+                icon.classList.replace('fa-moon', 'fa-sun');
+            }
+            themeToggleBtn.addEventListener('click', () => {
+                document.documentElement.classList.toggle('light-theme');
+                if (document.documentElement.classList.contains('light-theme')) {
+                    localStorage.setItem('theme', 'light');
+                    icon.classList.replace('fa-moon', 'fa-sun');
+                } else {
+                    localStorage.setItem('theme', 'dark');
+                    icon.classList.replace('fa-sun', 'fa-moon');
+                }
+            });
+        }
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            try {
+                await fetch('/logout', { method: 'POST', headers: { 'X-CSRF-Token': getCsrfToken() } });
+                window.location.href = '/sing';
+            } catch (e) {
+                window.location.href = '/sing';
+            }
+        });
+
+        // Prompt Update
+        document.getElementById('promptForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = document.getElementById('promptText').value;
+            if (!window.botID) {
+                Toast.show("No tienes un bot activo. Contacta a soporte.", "error");
+                return;
+            }
+            try {
+                const res = await fetch(`/bot/${window.botID}/prompt`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+                    body: JSON.stringify({ prompt: text })
+                });
+                if (res.ok) {
+                    Toast.show("Prompt actualizado correctamente", "success");
+                } else {
+                    Toast.show("Error al guardar el prompt", "error");
+                }
+            } catch (err) {
+                Toast.show("Error de red", "error");
+            }
+        });
+
+        let pollingInterval = null;
+
+        // Check Initial Status
+        async function checkBotStatus() {
+            if (!window.botID) return;
+            try {
+                const res = await fetch(`/bot/${window.botID}/status`, {
+                    headers: { 'X-CSRF-Token': getCsrfToken() }
+                });
+                const data = await res.json();
+                updateStatusBadge(data.active);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function updateStatusBadge(isActive) {
+            const badge = document.getElementById('connStatus');
+            const btn = document.getElementById('startBotBtn');
+            if (isActive) {
+                badge.textContent = 'Conectado';
+                badge.className = 'status-badge active';
+                btn.style.display = 'none';
+                document.getElementById('qrBox').style.display = 'none';
+                if (pollingInterval) {
+                    clearInterval(pollingInterval);
+                    pollingInterval = null;
+                }
+            } else {
+                badge.textContent = 'Desconectado';
+                badge.className = 'status-badge inactive';
+                btn.style.display = 'block';
+            }
+        }
+
+        // Connect Bot
+        document.getElementById('startBotBtn').addEventListener('click', async () => {
+            document.getElementById('startBotBtn').style.display = 'none';
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('qrBox').style.display = 'none';
+            
+            try {
+                const res = await fetch('/start-bot', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': getCsrfToken() }
+                });
+                const data = await res.json();
+                document.getElementById('loader').style.display = 'none';
+                
+                if (data.status === 'ok') {
+                    if (data.active) {
+                        updateStatusBadge(true);
+                        Toast.show("Bot ya estaba conectado", "success");
+                    } else if (data.qr) {
+                        document.getElementById('qrImage').src = 'data:image/png;base64,' + data.qr;
+                        document.getElementById('qrBox').style.display = 'block';
+                        
+                        // Start polling
+                        if (!pollingInterval) {
+                            pollingInterval = setInterval(async () => {
+                                try {
+                                    const st = await fetch(`/bot/${window.botID}/status`, { headers: { 'X-CSRF-Token': getCsrfToken() }});
+                                    const std = await st.json();
+                                    if (std.active) {
+                                        updateStatusBadge(true);
+                                        Toast.show("¡WhatsApp Vinculado Exitosamente!", "success");
+                                    }
+                                } catch (err) {}
+                            }, 5000); // Check every 5 seconds
+                        }
+                    } else {
+                        Toast.show("Respuesta inesperada", "error");
+                        updateStatusBadge(false);
+                    }
+                } else {
+                    Toast.show(data.error || "Error al conectar", "error");
+                    updateStatusBadge(false);
+                }
+            } catch (err) {
+                document.getElementById('loader').style.display = 'none';
+                Toast.show("Error de red", "error");
+                updateStatusBadge(false);
+            }
+        });
+
+        // Upgrade Checkout
+        const upgradeBtn = document.getElementById('upgradeBtn');
+        if (upgradeBtn) {
+            upgradeBtn.addEventListener('click', async () => {
+                try {
+                    const res = await fetch('/api/payments/checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+                        body: JSON.stringify({ bot_id: window.botID, tier: 'pro' })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.checkout_url) {
+                        window.location.href = data.checkout_url;
+                    } else {
+                        Toast.show(data.error || "Error al iniciar pago", "error");
+                    }
+                } catch (err) {
+                    Toast.show("Error de red", "error");
+                }
+            });
+        }
+    </script>
+</body>
+</html>
