@@ -1,11 +1,11 @@
 # Start from official Go image for building
-FROM golang:alpine AS builder
+FROM golang:1.25-bookworm AS builder
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
 
 # Install git and build dependencies
-RUN apk update && apk add --no-cache git build-base
+RUN apt-get update && apt-get install -y git build-essential
 
 # Copy go mod and sum files
 COPY go.mod go.sum ./
@@ -18,13 +18,13 @@ COPY . .
 
 # Build the Go app with optimizations
 # -w -s flags strip debugging information to reduce binary size
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o wago ./src/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o wago ./src/main.go
 
-# Start a new stage from a minimal alpine image
-FROM alpine:latest
+# Start a new stage from a minimal debian image
+FROM debian:bookworm-slim
 
 # Add ca-certificates for HTTPS (needed for OpenAI/OpenRouter APIs) and tzdata for timezones
-RUN apk --no-cache add ca-certificates tzdata
+RUN apt-get update && apt-get install -y ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root/
 
