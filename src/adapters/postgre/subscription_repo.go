@@ -1,4 +1,4 @@
-package postgres
+package postgre
 
 import (
 	"App/src/domain"
@@ -29,9 +29,10 @@ func (r *SubscriptionRepo) Get(ctx context.Context, botID int) (*domain.Subscrip
 
 func (r *SubscriptionRepo) Save(ctx context.Context, sub *domain.Subscription) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO subscriptions (bot_id, tier, msg_limit, expires_at) VALUES ($1, $2, $3, $4) 
-		 ON CONFLICT (bot_id) DO UPDATE SET tier = $2, msg_limit = $3, expires_at = $4`,
-		sub.BotID, sub.Tier, sub.MsgLimit, sub.ExpiresAt)
+		`INSERT INTO subscriptions (bot_id, tier, msg_limit, expires_at) VALUES ($1, $2, $3, $4)
+		 ON CONFLICT (bot_id) DO UPDATE SET tier = $5, msg_limit = $6, expires_at = $7`,
+		sub.BotID, sub.Tier, sub.MsgLimit, sub.ExpiresAt,
+		sub.Tier, sub.MsgLimit, sub.ExpiresAt)
 	return err
 }
 
@@ -56,8 +57,8 @@ func (r *PromptRepo) Get(ctx context.Context, botID int) (string, error) {
 
 func (r *PromptRepo) Save(ctx context.Context, botID int, prompt string) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO prompts (bot_id, prompt) VALUES ($1, $2) ON CONFLICT (bot_id) DO UPDATE SET prompt = $2`,
-		botID, prompt)
+		`INSERT INTO prompts (bot_id, prompt) VALUES ($1, $2) ON CONFLICT (bot_id) DO UPDATE SET prompt = $3`,
+		botID, prompt, prompt)
 	return err
 }
 
@@ -83,7 +84,8 @@ func (r *OAuthRepo) GetRefreshToken(ctx context.Context, userID int, provider st
 
 func (r *OAuthRepo) SaveRefreshToken(ctx context.Context, userID int, provider, refreshToken string) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO oauth_tokens (user_id, provider, refresh_token, updated_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) ON CONFLICT (user_id, provider) DO UPDATE SET refresh_token = $3, updated_at = CURRENT_TIMESTAMP`,
-		userID, provider, refreshToken)
+		`INSERT INTO oauth_tokens (user_id, provider, refresh_token, updated_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+		 ON CONFLICT (user_id, provider) DO UPDATE SET refresh_token = $4, updated_at = CURRENT_TIMESTAMP`,
+		userID, provider, refreshToken, refreshToken)
 	return err
 }

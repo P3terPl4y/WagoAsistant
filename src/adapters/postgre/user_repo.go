@@ -1,12 +1,13 @@
-package postgres
+package postgre
 
 import (
 	"App/src/domain"
 	"context"
 	"database/sql"
+	"fmt"
 )
 
-// UserRepo implements ports.UserRepository using SQL.
+// UserRepo implements ports.UserRepository using SQLite.
 type UserRepo struct {
 	db *sql.DB
 }
@@ -50,12 +51,17 @@ func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, 
 }
 
 func (r *UserRepo) Create(ctx context.Context, username, email, phone, passwordHash string) (*domain.User, error) {
-	var u domain.User
-	err := r.db.QueryRowContext(ctx,
-		`INSERT INTO users (username, email, phone, password_hash) VALUES ($1, $2, $3, $4) RETURNING id, username, email, phone, role, created_at`,
-		username, email, phone, passwordHash).
-		Scan(&u.ID, &u.Username, &u.Email, &u.Phone, &u.Role, &u.CreatedAt)
-	return &u, err
+	res, err := r.db.ExecContext(ctx,
+		`INSERT INTO users (username, email, phone, password_hash) VALUES ($1, $2, $3, $4)`,
+		username, email, phone, passwordHash)
+	if err != nil {
+		return nil, err
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+	return r.GetByID(ctx, int(id))
 }
 
 func (r *UserRepo) UpdatePassword(ctx context.Context, userID int, passwordHash string) error {
@@ -92,6 +98,7 @@ func (r *UserRepo) ListAll(ctx context.Context) ([]domain.User, error) {
 
 func (r *UserRepo) CountAdmins(ctx context.Context) (int, error) {
 	var count int
+	fmt.Println("ssss")
 	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE role = 'admin'`).Scan(&count)
 	return count, err
 }
@@ -99,14 +106,14 @@ func (r *UserRepo) CountAdmins(ctx context.Context) (int, error) {
 func (r *UserRepo) CheckDuplicate(ctx context.Context, username, email, phone string) (bool, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM users WHERE username = $1 OR email = $2 OR phone = $3`,
-		username, email, phone).Scan(&count)
+		`SELECT COUNT(*) FROM users WHERE username = $1 OR email = $2 OR phone = $3`, username, email, phone).Scan(&count)
+	fmt.Println("EEEE")
 	return count > 0, err
 }
 
 func (r *UserRepo) CheckPhoneTaken(ctx context.Context, phone string, excludeUserID int) (bool, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM users WHERE phone = $1 AND id != $2`, phone, excludeUserID).Scan(&count)
+		`SELECT COUNT(*) FROM users WHERE phone = $1 AND id != $1`, phone, excludeUserID).Scan(&count)
 	return count > 0, err
 }

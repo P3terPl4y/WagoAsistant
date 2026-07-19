@@ -20,3 +20,5 @@ coverage.out
 
 # Caché del módulo
 vendor/
+
+sqlite.db

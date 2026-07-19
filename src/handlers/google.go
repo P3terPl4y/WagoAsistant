@@ -4,7 +4,6 @@ import (
 	"App/src/pkg/logger"
 	"App/src/ports"
 	"crypto/rand"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 
@@ -16,13 +15,13 @@ import (
 // GoogleHandler handles Google OAuth2 flow.
 type GoogleHandler struct {
 	oauthCfg  *oauth2.Config
-	db        *sql.DB
+	userRepo  ports.UserRepository
 	oauthRepo ports.OAuthRepository
 	logger    logger.Logger
 }
 
-func NewGoogleHandler(oauthCfg *oauth2.Config, db *sql.DB, oauthRepo ports.OAuthRepository, log logger.Logger) *GoogleHandler {
-	return &GoogleHandler{oauthCfg: oauthCfg, db: db, oauthRepo: oauthRepo, logger: log.WithComponent("google_oauth")}
+func NewGoogleHandler(oauthCfg *oauth2.Config, userRepo ports.UserRepository, oauthRepo ports.OAuthRepository, log logger.Logger) *GoogleHandler {
+	return &GoogleHandler{oauthCfg: oauthCfg, userRepo: userRepo, oauthRepo: oauthRepo, logger: log.WithComponent("google_oauth")}
 }
 
 func (h *GoogleHandler) Login(c fiber.Ctx) error {
@@ -60,16 +59,27 @@ func (h *GoogleHandler) Callback(c fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Error al decodificar"})
 	}
 
+	// Try to find existing user by email
+	user, err := h.userRepo.GetByEmail(c, userInfo.Email)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Error al buscar usuario"})
+	}
+
 	var userID int
 	var role string
-	err = h.db.QueryRow(`SELECT id, role FROM users WHERE email = $1`, userInfo.Email).Scan(&userID, &role)
-	if err != nil {
+
+	if user != nil {
+		userID = user.ID
+		role = user.Role
+	} else {
+		// Create new user via repository
 		dummyHash := "$2a$10$dummyhash"
-		err = h.db.QueryRow(`INSERT INTO users (username, email, phone, password_hash, role) VALUES ($1, $2, $3, $4, 'user') RETURNING id, role`,
-			userInfo.Email, userInfo.Email, "", dummyHash).Scan(&userID, &role)
+		newUser, err := h.userRepo.Create(c, userInfo.Email, userInfo.Email, "", dummyHash)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Error al crear usuario"})
 		}
+		userID = newUser.ID
+		role = newUser.Role
 	}
 
 	_ = h.oauthRepo.SaveRefreshToken(c, userID, "google", token.RefreshToken)

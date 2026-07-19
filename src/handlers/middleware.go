@@ -6,18 +6,23 @@ import (
 )
 
 // SecurityHeaders adds security headers to all responses.
+// The CSP is intentionally permissive so the frontend can make API calls
+// from any domain/protocol without being blocked by the browser.
 func SecurityHeaders(c fiber.Ctx) error {
 	c.Set("X-Content-Type-Options", "nosniff")
 	c.Set("X-Frame-Options", "DENY")
-	c.Set("Content-Security-Policy",
-		"default-src 'self'; "+
-			"script-src 'self' 'unsafe-inline'; "+
-			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; "+
-			"font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "+
-			"img-src 'self' data: https://copilot.microsoft.com https://images.unsplash.com https://thumbs.dreamstime.com; "+
-			"connect-src 'self';")
 	c.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 	c.Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+
+	// CSP: allow self + inline scripts/styles + external fonts/images + any API connection
+	c.Set("Content-Security-Policy",
+		"default-src 'self'; "+
+			"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "+
+			"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; "+
+			"font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; "+
+			"img-src 'self' data: blob: https:; "+
+			"connect-src *;")
+
 	return c.Next()
 }
 

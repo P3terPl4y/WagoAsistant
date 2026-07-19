@@ -2,135 +2,115 @@ package config
 
 import (
 	"encoding/hex"
-	"fmt"
 	"os"
 	"time"
 )
 
-// Config holds all application configuration loaded from environment variables.
+// Config holds all application configuration.
+// Every value has a sensible default so the server starts without any .env file.
 type Config struct {
-	Environment string // "development" or "production"
+	Environment string
 	ServerAddr  string
+	BaseURL     string
 
 	DatabaseURL   string
-	RedisURL      string // optional
+	RedisURL      string
 	EncryptionKey []byte
 
-	// Admin defaults
 	AdminUsername string
-	AdminEmail   string
-	AdminPhone   string
-	AdminPass    string
+	AdminEmail    string
+	AdminPhone    string
+	AdminPass     string
 
-	// OAuth
 	GoogleClientID     string
 	GoogleClientSecret string
 	GoogleRedirectURL  string
 
-	// AI providers
 	AI AIConfig
 
-	// Limits
-	MaxBots             int
-	MaxConnectRetries   int
+	MaxBots              int
+	MaxConnectRetries    int
 	SubscriptionDuration time.Duration
-	MaxHistory          int64
-	MaxHistoryChars     int
-	SessionExpiration   time.Duration
-	RateLimitPerMinute  int
-	MaxPromptLength     int
-	MaxMsgLength        int
-	AITimeoutTotal      time.Duration
-	DedupWindow         time.Duration
+	MaxHistory           int64
+	MaxHistoryChars      int
+	SessionExpiration    time.Duration
+	RateLimitPerMinute   int
+	MaxPromptLength      int
+	MaxMsgLength         int
+	AITimeoutTotal       time.Duration
+	DedupWindow          time.Duration
 
-	// Cookies
 	CookieSecure bool
 }
 
-// AIConfig holds configuration for AI providers.
 type AIConfig struct {
-	OpenRouterKey  string
-	OpenRouterURL  string
-	LegacyKey      string
-	LegacyURL      string
-	LocalURL       string
-	LocalEnabled   bool
-	FreeModels     []string
+	OpenRouterKey string
+	OpenRouterURL string
+	LegacyKey     string
+	LegacyURL     string
+	LocalURL      string
+	LocalEnabled  bool
+	FreeModels    []string
 }
 
-// Load reads configuration from environment variables and returns a validated Config.
-// It panics on missing required values to fail fast at startup.
+// Load builds a Config. All values have defaults; environment variables override them.
 func Load() *Config {
 	cfg := &Config{
-		Environment: getEnv("APP_ENV", "development"),
-		ServerAddr:  getEnv("SERVER_ADDR", "127.0.0.1:3000"),
-
-		DatabaseURL: requireEnv("DATABASE_URL"),
+		Environment: env("APP_ENV", "production"),
+		ServerAddr:  env("SERVER_ADDR", "0.0.0.0:3000"),
+		BaseURL:     env("BASE_URL", "https://wago.redcliente.cl"),
+		DatabaseURL: env("DATABASE_URL", "postgres://gowa:go-wa333P3ter*@localhost:5432/gowa_db?sslmode=disable"),
 		RedisURL:    os.Getenv("REDIS_URL"),
 
-		// Admin
-		AdminUsername: getEnv("ADMIN_USERNAME", "admin"),
-		AdminEmail:   getEnv("ADMIN_EMAIL", "admin@example.com"),
-		AdminPhone:   getEnv("ADMIN_PHONE", "+1234567890"),
-		AdminPass:    getEnv("ADMIN_PASSWORD", "admin123"),
+		AdminUsername: env("ADMIN_USERNAME", "admin"),
+		AdminEmail:    env("ADMIN_EMAIL", "admin@wago.cl"),
+		AdminPhone:    env("ADMIN_PHONE", "+5351652038"),
+		AdminPass:     env("ADMIN_PASSWORD", "admin123"),
 
-		// OAuth
 		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 		GoogleRedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
 
-		// AI
 		AI: AIConfig{
-			OpenRouterKey:  getEnv("OPENROUTER_API_KEY", ""),
-			OpenRouterURL:  getEnv("OPENROUTER_URL", "https://openrouter.ai/api/v1/chat/completions"),
-			LegacyKey:      getEnv("LEGACY_API_KEY", ""),
-			LegacyURL:      getEnv("LEGACY_URL", "https://apifreellm.com/api/v1/chat"),
-			LocalURL:       getEnv("LOCAL_AI_URL", "http://localhost:8080/v1/chat/completions"),
-			LocalEnabled:   os.Getenv("LOCAL_AI_ENABLED") == "true",
-			FreeModels:     []string{"openrouter/free"},
+			OpenRouterKey: env("OPENROUTER_API_KEY", ""),
+			OpenRouterURL: env("OPENROUTER_URL", "https://openrouter.ai/api/v1/chat/completions"),
+			LegacyKey:     env("LEGACY_API_KEY", ""),
+			LegacyURL:     env("LEGACY_URL", "https://apifreellm.com/api/v1/chat"),
+			LocalURL:      env("LOCAL_AI_URL", "http://localhost:8080/v1/chat/completions"),
+			LocalEnabled:  os.Getenv("LOCAL_AI_ENABLED") == "true",
+			FreeModels:    []string{"openrouter/free"},
 		},
 
-		// Limits
-		MaxBots:             50,
-		MaxConnectRetries:   5,
+		MaxBots:              50,
+		MaxConnectRetries:    5,
 		SubscriptionDuration: 7 * 24 * time.Hour,
-		MaxHistory:          8,
-		MaxHistoryChars:     2000,
-		SessionExpiration:   1 * time.Hour,
-		RateLimitPerMinute:  10,
-		MaxPromptLength:     2000,
-		MaxMsgLength:        500,
-		AITimeoutTotal:      40 * time.Second,
-		DedupWindow:         3 * time.Second,
+		MaxHistory:           8,
+		MaxHistoryChars:      2000,
+		SessionExpiration:    1 * time.Hour,
+		RateLimitPerMinute:   10,
+		MaxPromptLength:      2000,
+		MaxMsgLength:         500,
+		AITimeoutTotal:       40 * time.Second,
+		DedupWindow:          3 * time.Second,
 
-		// Cookies
+		// false by default → works on plain HTTP without issues
 		CookieSecure: os.Getenv("COOKIE_SECURE") == "true",
 	}
 
-	// Parse encryption key
-	keyHex := requireEnv("ENCRYPTION_KEY")
+	// Encryption key: default value baked in so .env is not required
+	keyHex := env("ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	key, err := hex.DecodeString(keyHex)
 	if err != nil || len(key) != 32 {
-		panic("ENCRYPTION_KEY must be a 64-character hex string (32 bytes)")
+		panic("ENCRYPTION_KEY must be a 64-char hex string (32 bytes)")
 	}
 	cfg.EncryptionKey = key
 
 	return cfg
 }
 
-// getEnv returns the environment variable value or a default.
-func getEnv(key, defaultVal string) string {
+func env(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
-	return defaultVal
-}
-
-// requireEnv returns the environment variable value or panics if not set.
-func requireEnv(key string) string {
-	v := os.Getenv(key)
-	if v == "" {
-		panic(fmt.Sprintf("required environment variable %s is not set", key))
-	}
-	return v
+	return fallback
 }

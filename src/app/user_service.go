@@ -59,7 +59,7 @@ func (s *UserService) Register(ctx context.Context, username, email, phone, pass
 func (s *UserService) Authenticate(ctx context.Context, username, email, password string) (*domain.User, error) {
 	var user *domain.User
 	var err error
-
+	fmt.Println("e")
 	if username != "" {
 		user, err = s.users.GetByUsername(ctx, username)
 	}
@@ -79,7 +79,7 @@ func (s *UserService) Authenticate(ctx context.Context, username, email, passwor
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
 		return nil, domain.ErrUnauthorized
 	}
-
+	fmt.Println("eee")
 	return user, nil
 }
 

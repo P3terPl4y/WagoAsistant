@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   app:
     build: .
@@ -9,7 +7,9 @@ services:
     environment:
       - PORT=3000
       - SERVER_ADDR=0.0.0.0:3000
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/wago?sslmode=disable
+      - APP_ENV=production
+      - BASE_URL=https://wago.redcliente.cl
+      - DATABASE_PATH=/root/data/wago.db
       - REDIS_URL=redis://redis:6379/0
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
@@ -18,33 +18,14 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_REDIRECT_URL=${GOOGLE_REDIRECT_URL}
-      - COOKIE_SECURE=false # Set to true if using HTTPS in production
+      - COOKIE_SECURE=true
     depends_on:
-      db:
-        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
     volumes:
-      - wago_sessions:/root/sessions # Assuming any session files (if SQLite fallback) go here
-
-  db:
-    image: postgres:15-alpine
-    container_name: wago_db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: wago
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
+      - wago_data:/root/data
+      - wago_sessions:/root/sessions
 
   redis:
     image: redis:7-alpine
@@ -61,6 +42,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  wago_data:
   redis_data:
   wago_sessions:

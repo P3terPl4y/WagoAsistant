@@ -3,8 +3,9 @@ package main
 import (
 	"App/src/adapters/ai"
 	"App/src/adapters/encryption"
-	adapterPostgres "App/src/adapters/postgres"
 	adapterRedis "App/src/adapters/redis"
+	//"App/src/adapters/sqlite"
+	"App/src/adapters/postgre"
 	"App/src/app"
 	"App/src/config"
 	"App/src/handlers"
@@ -21,7 +22,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 	fiberLogger "github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/session"
-	"github.com/gofiber/fiber/v3/middleware/static"
 	redisStorage "github.com/gofiber/storage/redis/v3"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -35,27 +35,44 @@ func main() {
 	log := logger.New(cfg.Environment)
 	log.Info().Str("env", cfg.Environment).Msg("Starting Wago")
 
+	/*// ============================================================
+	// 2. DATABASE (sqlite)
 	// ============================================================
-	// 2. DATABASE
-	// ============================================================
-	db := adapterPostgres.Connect(cfg.DatabaseURL, log)
+	db := sqlite.Connect("./src/db/db", log)
 	defer db.Close()
-	adapterPostgres.EnsureAdmin(db, cfg.AdminUsername, cfg.AdminEmail, cfg.AdminPhone, cfg.AdminPass, log)
+	sqlite.EnsureAdmin(db, cfg.AdminUsername, cfg.AdminEmail, cfg.AdminPhone, cfg.AdminPass, log)
 
 	// ============================================================
-	// 3. REDIS (optional)
+	// 3. REPOSITORIES
+	// ============================================================
+	userRepo := sqlite.NewUserRepo(db)
+	botRepo := sqlite.NewBotRepo(db)
+	chatRepo := sqlite.NewChatRepo(db)
+	promptRepo := sqlite.NewPromptRepo(db)
+	subRepo := sqlite.NewSubscriptionRepo(db)
+	oauthRepo := sqlite.NewOAuthRepo(db)
+*/
+	// ============================================================
+	// 2. DATABASE (Postgre)
+	// ============================================================
+	db := postgre.Connect(cfg.DatabaseURL, log)
+	defer db.Close()
+	postgre.EnsureAdmin(db, cfg.AdminUsername, cfg.AdminEmail, cfg.AdminPhone, cfg.AdminPass, log)
+
+	// ============================================================
+	// 3. REPOSITORIES
+	// ============================================================
+	userRepo := postgre.NewUserRepo(db)
+	botRepo := postgre.NewBotRepo(db)
+	chatRepo := postgre.NewChatRepo(db)
+	promptRepo := postgre.NewPromptRepo(db)
+	subRepo := postgre.NewSubscriptionRepo(db)
+	oauthRepo := postgre.NewOAuthRepo(db)
+
+	 // ============================================================
+	// 4. REDIS (optional)
 	// ============================================================
 	redisCache := adapterRedis.Connect(cfg.RedisURL, log)
-
-	// ============================================================
-	// 4. REPOSITORIES
-	// ============================================================
-	userRepo := adapterPostgres.NewUserRepo(db)
-	botRepo := adapterPostgres.NewBotRepo(db)
-	chatRepo := adapterPostgres.NewChatRepo(db)
-	promptRepo := adapterPostgres.NewPromptRepo(db)
-	subRepo := adapterPostgres.NewSubscriptionRepo(db)
-	oauthRepo := adapterPostgres.NewOAuthRepo(db)
 
 	// ============================================================
 	// 5. SERVICES
@@ -124,7 +141,6 @@ func main() {
 		Storage:        storage,
 	})
 	fiberApp.Use(sessionMW)
-	fiberApp.Use(static.New("./src/static/"))
 
 	// ============================================================
 	// 9. HANDLERS
@@ -133,7 +149,7 @@ func main() {
 	botH := handlers.NewBotHandler(botSvc, botRepo, promptRepo, promptCache, botMgr, log, cfg.MaxBots)
 	adminH := handlers.NewAdminHandler(userSvc, botRepo, promptRepo, botMgr, db, redisCache, log, cfg.MaxBots)
 	dashH := handlers.NewDashboardHandler(userSvc, botRepo, promptRepo, subRepo, redisCache, log)
-	googleH := handlers.NewGoogleHandler(oauthCfg, db, oauthRepo, log)
+	googleH := handlers.NewGoogleHandler(oauthCfg, userRepo, oauthRepo, log)
 	paymentH := handlers.NewPaymentHandler(subRepo, botRepo, log)
 
 	// ============================================================

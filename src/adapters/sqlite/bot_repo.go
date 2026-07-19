@@ -1,4 +1,4 @@
-package postgres
+package sqlite
 
 import (
 	"App/src/domain"
@@ -6,7 +6,7 @@ import (
 	"database/sql"
 )
 
-// BotRepo implements ports.BotRepository using SQL.
+// BotRepo implements ports.BotRepository using SQLite.
 type BotRepo struct {
 	db *sql.DB
 }
@@ -19,7 +19,7 @@ func NewBotRepo(db *sql.DB) *BotRepo {
 func (r *BotRepo) GetByID(ctx context.Context, id int) (*domain.Bot, error) {
 	var b domain.Bot
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, user_id, blocked, session_file, payment_status, created_at FROM bots WHERE id = $1`, id).
+		`SELECT id, user_id, blocked, session_file, payment_status, created_at FROM bots WHERE id = ?`, id).
 		Scan(&b.ID, &b.UserID, &b.Blocked, &b.SessionFile, &b.PaymentStatus, &b.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -29,7 +29,7 @@ func (r *BotRepo) GetByID(ctx context.Context, id int) (*domain.Bot, error) {
 
 func (r *BotRepo) GetByUser(ctx context.Context, userID int) ([]domain.Bot, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, user_id, blocked, session_file, payment_status, created_at FROM bots WHERE user_id = $1`, userID)
+		`SELECT id, user_id, blocked, session_file, payment_status, created_at FROM bots WHERE user_id = ?`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -70,47 +70,51 @@ func (r *BotRepo) Create(ctx context.Context, userID int, sessionFile, paymentSt
 	}
 	defer tx.Rollback()
 
-	var id int
-	err = tx.QueryRowContext(ctx,
-		`INSERT INTO bots (user_id, session_file, payment_status) VALUES ($1, $2, $3) RETURNING id`,
-		userID, sessionFile, paymentStatus).Scan(&id)
+	res, err := tx.ExecContext(ctx,
+		`INSERT INTO bots (user_id, session_file, payment_status) VALUES (?, ?, ?)`,
+		userID, sessionFile, paymentStatus)
+	if err != nil {
+		return 0, err
+	}
+
+	id, err := res.LastInsertId()
 	if err != nil {
 		return 0, err
 	}
 
 	// Create default free subscription valid for 30 days
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO subscriptions (bot_id, tier, msg_limit, expires_at) VALUES ($1, 'free', 10, CURRENT_TIMESTAMP + INTERVAL '30 days')`,
+		`INSERT INTO subscriptions (bot_id, tier, msg_limit, expires_at) VALUES (?, 'free', 10, datetime('now', '+30 days'))`,
 		id)
 	if err != nil {
 		return 0, err
 	}
 
-	return id, tx.Commit()
+	return int(id), tx.Commit()
 }
 
 func (r *BotRepo) UpdateBlocked(ctx context.Context, id int, blocked bool) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE bots SET blocked = $1 WHERE id = $2`, blocked, id)
+	_, err := r.db.ExecContext(ctx, `UPDATE bots SET blocked = ? WHERE id = ?`, blocked, id)
 	return err
 }
 
 func (r *BotRepo) UpdatePaymentStatus(ctx context.Context, id int, status string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE bots SET payment_status = $1 WHERE id = $2`, status, id)
+	_, err := r.db.ExecContext(ctx, `UPDATE bots SET payment_status = ? WHERE id = ?`, status, id)
 	return err
 }
 
 func (r *BotRepo) UpdateSessionFile(ctx context.Context, id int, file string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE bots SET session_file = $1 WHERE id = $2`, file, id)
+	_, err := r.db.ExecContext(ctx, `UPDATE bots SET session_file = ? WHERE id = ?`, file, id)
 	return err
 }
 
 func (r *BotRepo) Delete(ctx context.Context, id int) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM bots WHERE id = $1`, id)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM bots WHERE id = ?`, id)
 	return err
 }
 
 func (r *BotRepo) CountByUser(ctx context.Context, userID int) (int, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM bots WHERE user_id = $1`, userID).Scan(&count)
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM bots WHERE user_id = ?`, userID).Scan(&count)
 	return count, err
 }

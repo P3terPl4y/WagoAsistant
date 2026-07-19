@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Acceso · Wago</title>
-    
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
     <link rel="stylesheet" href="/assets/css/styles.css?v=3" />
     <style>
@@ -17,54 +17,100 @@
             justify-content: center;
             padding: 24px;
         }
+
         .login-wrapper {
             width: 100%;
             max-width: 440px;
         }
+
         .brand {
             display: flex;
             align-items: center;
             gap: 12px;
             margin-bottom: 8px;
         }
+
         .brand img {
             height: 40px;
             width: 40px;
             border-radius: 50%;
             object-fit: cover;
         }
+
         .brand span {
             font-size: 1.6rem;
             font-weight: 700;
             color: var(--color-text-main);
         }
+
         .brand span small {
             font-weight: 400;
             color: var(--color-text-muted);
             font-size: 0.9rem;
         }
-        h2 { font-size: 1.5rem; font-weight: 600; margin: 20px 0 6px; }
-        .sub { color: var(--color-text-muted); font-size: 0.95rem; margin-bottom: 24px; }
-        .btn-login { width: 100%; margin-top: 10px; }
-        .register-link { margin-top: 24px; text-align: center; font-size: 0.95rem; color: var(--color-text-muted); }
-        .register-link a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
-        .register-link a:hover { text-decoration: underline; }
-        .back-home { display: inline-flex; align-items: center; gap: 6px; color: var(--color-text-muted); font-size: 0.9rem; margin-bottom: 16px; text-decoration: none; }
-        .back-home:hover { color: var(--color-primary); }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 20px 0 6px;
+        }
+
+        .sub {
+            color: var(--color-text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 24px;
+        }
+
+        .btn-login {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .register-link {
+            margin-top: 24px;
+            text-align: center;
+            font-size: 0.95rem;
+            color: var(--color-text-muted);
+        }
+
+        .register-link a {
+            color: var(--color-primary);
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+
+        .back-home {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--color-text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            text-decoration: none;
+        }
+
+        .back-home:hover {
+            color: var(--color-primary);
+        }
     </style>
 </head>
 
 <body>
     <!-- Theme Toggle -->
-    <button class="theme-toggle" id="themeToggle" aria-label="Cambiar tema" style="position:fixed; top:24px; right:24px; z-index:100;">
+    <button class="theme-toggle" id="themeToggle" aria-label="Cambiar tema"
+        style="position:fixed; top:24px; right:24px; z-index:100;">
         <i class="fas fa-moon"></i>
     </button>
-    
+
     <div class="login-wrapper glass-card reveal">
         <div class="premium-card-body">
             <a href="/" class="back-home"><i class="fas fa-arrow-left"></i> Volver</a>
             <div class="brand">
-                <img src="https://copilot.microsoft.com/shares/XsBodgkpbrmLF5JjNvXrA" alt="Wago" />
+                <img src="assets/Copilot_20260709_045019.png" alt="Wago" />
                 <span>Wago <small>· acceso</small></span>
             </div>
             <h2>Inicia sesión</h2>
@@ -72,7 +118,8 @@
             <form id="loginForm">
                 <div class="form-group">
                     <label for="model">Usuario o email</label>
-                    <input type="text" id="model" class="form-control" placeholder="Ej: admin o correo@ejemplo.com" required />
+                    <input type="text" id="model" class="form-control" placeholder="Ej: admin o correo@ejemplo.com"
+                        required />
                 </div>
                 <div class="form-group">
                     <label for="pass">Contraseña</label>
@@ -82,12 +129,13 @@
                     <i class="fas fa-sign-in-alt"></i> Entrar
                 </button>
             </form>
+            <a href="/auth/google/login">Iniciar con Google</a>
             <div class="register-link">
                 ¿No tienes cuenta? <a href="/register">Regístrate</a>
             </div>
         </div>
     </div>
-    
+
     <script src="/assets/js/main.js?v=2"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -104,7 +152,7 @@
             e.preventDefault();
             const model = document.getElementById('model').value.trim();
             const pass = document.getElementById('pass').value.trim();
-            
+
             if (!model || !pass) {
                 Toast.show('Todos los campos son obligatorios.', 'error');
                 return;
@@ -112,7 +160,7 @@
             try {
                 const r = await fetch('/login', {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-Token': getCsrfToken()
                     },
@@ -133,11 +181,11 @@
                 Toast.show('Error de red. Verifica tu conexión.', 'error');
             }
         });
-        
-        document.querySelectorAll('input').forEach(inp => inp.addEventListener('keydown', e => { 
-            if (e.key === 'Enter') document.getElementById('loginForm').dispatchEvent(new Event('submit')); 
+
+        document.querySelectorAll('input').forEach(inp => inp.addEventListener('keydown', e => {
+            if (e.key === 'Enter') document.getElementById('loginForm').dispatchEvent(new Event('submit'));
         }));
-        
+
         // Theme Toggle Logic
         const themeToggleBtn = document.getElementById('themeToggle');
         if (themeToggleBtn) {

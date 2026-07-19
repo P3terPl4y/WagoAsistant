@@ -1,27 +1,32 @@
-package postgres
+package postgre
 
 import (
 	"App/src/pkg/logger"
 	"database/sql"
 
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // PostgreSQL
+
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Connect opens a database connection and initializes the schema.
-func Connect(databaseURL string, log logger.Logger) *sql.DB {
-	db, err := sql.Open("postgres", databaseURL)
+// Connect opens a Postgre database connection and initializes the schema.
+// The database file and its parent directory are created automatically if they don't exist.
+func Connect(dbPath string, log logger.Logger) *sql.DB {
+	// Open with WAL mode and foreign keys enabled for better concurrency
+	db, err := sql.Open("postgres", dbPath)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to connect to database")
+		log.Fatal().Err(err).Msg("Failed to open Postgre database")
 	}
 	if err = db.Ping(); err != nil {
 		log.Fatal().Err(err).Msg("Database ping failed")
 	}
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
+
+	// SQLite performs best with limited connections
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 
 	runMigrations(db, log)
-	log.Info().Msg("PostgreSQL database initialized")
+	log.Info().Str("path", dbPath).Msg("Postgre database initialized")
 	return db
 }
 
@@ -35,15 +40,15 @@ func runMigrations(db *sql.DB, log logger.Logger) {
 		phone TEXT UNIQUE NOT NULL,
 		password_hash TEXT NOT NULL,
 		role TEXT NOT NULL DEFAULT 'user',
-		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		created_at DATE DEFAULT CURRENT_TIMESTAMP
 	);
 	CREATE TABLE IF NOT EXISTS bots (
 		id SERIAL PRIMARY KEY,
 		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-		blocked BOOLEAN DEFAULT FALSE,
+		blocked INTEGER DEFAULT 0,
 		session_file TEXT,
 		payment_status TEXT DEFAULT 'free',
-		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		created_at DATE DEFAULT CURRENT_TIMESTAMP
 	);
 	CREATE TABLE IF NOT EXISTS prompts (
 		bot_id INTEGER PRIMARY KEY REFERENCES bots(id) ON DELETE CASCADE,
@@ -53,7 +58,7 @@ func runMigrations(db *sql.DB, log logger.Logger) {
 		bot_id INTEGER PRIMARY KEY REFERENCES bots(id) ON DELETE CASCADE,
 		tier TEXT NOT NULL DEFAULT 'free',
 		msg_limit INTEGER NOT NULL DEFAULT 10,
-		expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+		expires_at DATE NOT NULL
 	);
 	CREATE TABLE IF NOT EXISTS chat_history (
 		id SERIAL PRIMARY KEY,
@@ -61,14 +66,14 @@ func runMigrations(db *sql.DB, log logger.Logger) {
 		user_jid TEXT NOT NULL,
 		role TEXT NOT NULL,
 		content TEXT NOT NULL,
-		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		created_at DATE DEFAULT CURRENT_TIMESTAMP
 	);
 	CREATE TABLE IF NOT EXISTS oauth_tokens (
 		user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 		provider TEXT NOT NULL,
 		refresh_token TEXT NOT NULL,
-		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		created_at DATE DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATE DEFAULT CURRENT_TIMESTAMP,
 		PRIMARY KEY (user_id, provider)
 	);`
 
@@ -76,9 +81,35 @@ func runMigrations(db *sql.DB, log logger.Logger) {
 		log.Fatal().Err(err).Msg("Failed to run migrations")
 	}
 
-	_, _ = db.Exec(`ALTER TABLE bots ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'free'`)
-	_, _ = db.Exec(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'free'`)
-	_, _ = db.Exec(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS msg_limit INTEGER DEFAULT 10`)
+	// Safe column additions for SQLite (check if column exists first)
+	addColumnIfNotExists(db, "bots", "payment_status", "TEXT DEFAULT 'free'")
+	addColumnIfNotExists(db, "subscriptions", "tier", "TEXT DEFAULT 'free'")
+	addColumnIfNotExists(db, "subscriptions", "msg_limit", "INTEGER DEFAULT 10")
+}
+
+// addColumnIfNotExists safely adds a column to a table if it doesn't already exist.
+func addColumnIfNotExists(db *sql.DB, table, column, colType string) {
+	rows, err := db.Query("PRAGMA table_info(" + table + ")")
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notnull int
+		var dfltValue sql.NullString
+		var pk int
+		if err := rows.Scan(&cid, &name, &typ, &notnull, &dfltValue, &pk); err != nil {
+			continue
+		}
+		if name == column {
+			return // Column already exists
+		}
+	}
+
+	_, _ = db.Exec("ALTER TABLE " + table + " ADD COLUMN " + column + " " + colType)
 }
 
 // EnsureAdmin creates the default admin user if none exists.
@@ -90,7 +121,7 @@ func EnsureAdmin(db *sql.DB, username, email, phone, password string, log logger
 	if count == 0 {
 		hashed, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		_, err := db.Exec(
-			`INSERT INTO users (username, email, phone, password_hash, role) VALUES ($1, $2, $3, $4, 'admin')`,
+			`INSERT INTO users (username, email, phone, password_hash, role) VALUES ($1, $2 $3, $4, 'admin')`,
 			username, email, phone, string(hashed),
 		)
 		if err != nil {

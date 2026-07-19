@@ -22,19 +22,19 @@ import (
 
 // BotService handles bot lifecycle, messaging, and WhatsApp integration.
 type BotService struct {
-	bots         ports.BotRepository
-	prompts      ports.PromptRepository
-	subs         ports.SubscriptionRepository
-	users        ports.UserRepository
-	chat         *ChatService
-	ai           ports.AIService
-	botMgr       *concurrency.BotManager
-	promptCache  *concurrency.PromptCache
-	dedup        *concurrency.MessageDedup
-	userSem      *concurrency.UserSemaphore
-	cache        ports.CacheService
-	logger       logger.Logger
-	cfg          *config.Config
+	bots        ports.BotRepository
+	prompts     ports.PromptRepository
+	subs        ports.SubscriptionRepository
+	users       ports.UserRepository
+	chat        *ChatService
+	ai          ports.AIService
+	botMgr      *concurrency.BotManager
+	promptCache *concurrency.PromptCache
+	dedup       *concurrency.MessageDedup
+	userSem     *concurrency.UserSemaphore
+	cache       ports.CacheService
+	logger      logger.Logger
+	cfg         *config.Config
 
 	// WhatsApp session containers
 	containersMu sync.Mutex
@@ -84,13 +84,14 @@ func (s *BotService) GetContainer(botID int) *sqlstore.Container {
 	ctx := context.Background()
 	dbLog := waLog.Stdout("Database", "WARN", true)
 
-	// En Fase 2 usamos PostgreSQL de forma obligatoria
-	container, err := sqlstore.New(ctx, "postgres", s.cfg.DatabaseURL, dbLog)
+	// Use postgres for WhatsApp session storage
+	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(on)", s.cfg.DatabaseURL)
+	container, err := sqlstore.New(ctx, "postgres", dsn, dbLog)
 	if err != nil {
-		s.logger.Fatal().Err(err).Int("bot_id", botID).Msg("Failed to init session container with PostgreSQL")
+		s.logger.Fatal().Err(err).Int("bot_id", botID).Msg("Failed to init session container with postgres")
 	}
 	s.containers[botID] = container
-	s.logger.Info().Int("bot_id", botID).Msg("Session DB initialized (PostgreSQL)")
+	s.logger.Info().Int("bot_id", botID).Msg("Session DB initialized (postgres)")
 	return container
 }
 
@@ -327,7 +328,7 @@ func (s *BotService) respond(client *whatsmeow.Client, userKey string, botID int
 	}
 
 	ctx := context.Background()
-	
+
 	// Enforce daily rate limit based on tier
 	if s.cache != nil && s.cache.Available() {
 		sub, err := s.subs.Get(ctx, botID)
@@ -389,15 +390,21 @@ func (s *BotService) respond(client *whatsmeow.Client, userKey string, botID int
 		if res.err != nil {
 			log.Error().Err(res.err).Msg("AI error")
 			respuestaIA = "🤖 Lo siento, no pude procesar tu mensaje. Inténtalo de nuevo en un momento."
-			if s.cache != nil { s.cache.RecordGlobalMetric(ctx, "errors") }
+			if s.cache != nil {
+				s.cache.RecordGlobalMetric(ctx, "errors")
+			}
 		} else {
 			respuestaIA = res.resp
-			if s.cache != nil { s.cache.RecordGlobalMetric(ctx, "messages") }
+			if s.cache != nil {
+				s.cache.RecordGlobalMetric(ctx, "messages")
+			}
 		}
 	case <-time.After(s.cfg.AITimeoutTotal):
 		log.Warn().Str("recipient", recipient.String()).Msg("AI timeout")
 		respuestaIA = "🤖 Estoy tardando más de lo esperado. Inténtalo de nuevo."
-		if s.cache != nil { s.cache.RecordGlobalMetric(ctx, "timeouts") }
+		if s.cache != nil {
+			s.cache.RecordGlobalMetric(ctx, "timeouts")
+		}
 	}
 
 	if err := s.chat.SaveMessage(ctx, botID, recipient.String(), "assistant", respuestaIA); err != nil {

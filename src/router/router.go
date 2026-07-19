@@ -6,8 +6,8 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
-	"github.com/gofiber/fiber/v3/middleware/csrf"
 	"github.com/gofiber/fiber/v3/middleware/limiter"
+	"github.com/gofiber/fiber/v3/middleware/static"
 )
 
 // Setup configures all routes with the given handler instances.
@@ -22,19 +22,15 @@ func Setup(
 	rateLimitPerMinute int,
 	cookieSecure bool,
 ) {
+	// CORS: allow everything so nothing gets blocked behind reverse proxies
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://wago.app", "http://localhost:3000"},
+		AllowOriginsFunc: func(origin string) bool { return true },
 		AllowCredentials: true,
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "X-CSRF-Token", "Authorization"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
 	}))
 
-	app.Use(csrf.New(csrf.Config{
-		Extractor:      csrf.FromHeader("X-CSRF-Token"),
-		CookieName:     "csrf_token",
-		CookieSameSite: "Lax",
-		CookieSecure:   cookieSecure,
-		CookieHTTPOnly: false,
-	}))
-
+	// Rate limiter
 	lim := limiter.New(limiter.Config{
 		Max:        rateLimitPerMinute,
 		Expiration: 1 * time.Minute,
@@ -44,34 +40,37 @@ func Setup(
 		},
 	})
 
-	// Static pages
+	// Static assets (CSS, JS, images)
+	app.Use(static.New("./src/static/"))
+
+	// ──── Pages ────
 	app.Get("/", func(c fiber.Ctx) error { return c.SendFile("./src/static/index.html") })
 	app.Get("/sing", func(c fiber.Ctx) error { return c.SendFile("./src/static/sing.html") })
 	app.Get("/register", func(c fiber.Ctx) error { return c.SendFile("./src/static/register.html") })
 
-	// Google OAuth
+	// ──── Google OAuth ────
 	app.Get("/auth/google/login", googleH.Login)
 	app.Get("/auth/google/callback", googleH.Callback)
 
-	// Auth
+	// ──── Auth (public) ────
 	app.Post("/register", lim, authH.Register)
 	app.Post("/login", lim, authH.Login)
 	app.Post("/logout", handlers.AuthRequired, authH.Logout)
 
-	// User
+	// ──── User (authenticated) ────
 	app.Put("/user/password", handlers.AuthRequired, authH.UpdatePassword)
 	app.Put("/user/phone", handlers.AuthRequired, authH.UpdatePhone)
 
-	// Dashboard
+	// ──── Dashboard ────
 	app.Get("/dashboard", handlers.AuthRequired, dashH.Render)
 
-	// Bot
+	// ──── Bot ────
 	app.Post("/start-bot", handlers.AuthRequired, lim, botH.StartBot)
 	app.Get("/bot/:id/status", handlers.AuthRequired, botH.GetBotIDStatus)
 	app.Put("/bot/:id/prompt", handlers.AuthRequired, botH.UpdatePrompt)
 	app.Get("/active-bots", handlers.AuthRequired, botH.ActiveBots)
 
-	// Admin
+	// ──── Admin ────
 	admin := app.Group("/admin", handlers.AuthRequired, handlers.AdminRequired)
 	admin.Get("/", func(c fiber.Ctx) error { return c.SendFile("./src/static/admin.html") })
 	admin.Get("/users", adminH.ListUsers)
@@ -84,7 +83,7 @@ func Setup(
 	admin.Delete("/users/:id", adminH.DeleteUser)
 	admin.Get("/metrics", adminH.GetMetrics)
 
-	// Payments
+	// ──── Payments ────
 	app.Post("/api/payments/checkout", handlers.AuthRequired, paymentH.Checkout)
-	app.Post("/api/payments/webhook", paymentH.Webhook) // Note: No AuthRequired, Stripe sends to webhook
+	app.Post("/api/payments/webhook", paymentH.Webhook)
 }

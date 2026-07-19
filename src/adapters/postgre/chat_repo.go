@@ -1,4 +1,4 @@
-package postgres
+package postgre
 
 import (
 	"App/src/domain"
@@ -6,7 +6,7 @@ import (
 	"database/sql"
 )
 
-// ChatRepo implements ports.ChatRepository using SQL.
+// ChatRepo implements ports.ChatRepository using SQLite.
 type ChatRepo struct {
 	db *sql.DB
 }
