@@ -340,7 +340,8 @@
                     headers: { 'X-CSRF-Token': getCsrfToken() }
                 });
                 const data = await res.json();
-                updateStatusBadge(data.active);
+                // Ahora data.status puede ser 'active', 'inactive', etc.
+                updateStatusBadge(data.status === 'active');
             } catch (e) {
                 console.error(e);
             }
@@ -367,9 +368,13 @@
 
         // Connect Bot
         document.getElementById('startBotBtn').addEventListener('click', async () => {
-            document.getElementById('startBotBtn').style.display = 'none';
-            document.getElementById('loader').style.display = 'block';
-            document.getElementById('qrBox').style.display = 'none';
+            const btn = document.getElementById('startBotBtn');
+            const loader = document.getElementById('loader');
+            const qrBox = document.getElementById('qrBox');
+
+            btn.style.display = 'none';
+            loader.style.display = 'block';
+            qrBox.style.display = 'none';
 
             try {
                 const res = await fetch('/start-bot', {
@@ -377,39 +382,47 @@
                     headers: { 'X-CSRF-Token': getCsrfToken() }
                 });
                 const data = await res.json();
-                document.getElementById('loader').style.display = 'none';
+                loader.style.display = 'none';
 
-                if (data.status === 'ok') {
-                    if (data.active) {
-                        updateStatusBadge(true);
-                        Toast.show("Bot ya estaba conectado", "success");
-                    } else if (data.qr) {
-                        document.getElementById('qrImage').src = 'data:image/png;base64,' + data.qr;
-                        document.getElementById('qrBox').style.display = 'block';
-
-                        // Start polling
-                        if (!pollingInterval) {
-                            pollingInterval = setInterval(async () => {
-                                try {
-                                    const st = await fetch(`/bot/${window.botID}/status`, { headers: { 'X-CSRF-Token': getCsrfToken() } });
-                                    const std = await st.json();
-                                    if (std.active) {
-                                        updateStatusBadge(true);
-                                        Toast.show("¡WhatsApp Vinculado Exitosamente!", "success");
-                                    }
-                                } catch (err) { }
-                            }, 5000); // Check every 5 seconds
-                        }
-                    } else {
-                        Toast.show("Respuesta inesperada", "error");
-                        updateStatusBadge(false);
+                // Manejar según el status devuelto
+                if (data.status === 'qr') {
+                    // Mostrar QR
+                    document.getElementById('qrImage').src = 'data:image/png;base64,' + data.qr;
+                    qrBox.style.display = 'block';
+                    // Iniciar polling (si no existe)
+                    if (!pollingInterval) {
+                        pollingInterval = setInterval(async () => {
+                            try {
+                                const st = await fetch(`/bot/${window.botID}/status`, {
+                                    headers: { 'X-CSRF-Token': getCsrfToken() }
+                                });
+                                const std = await st.json();
+                                // Ahora usamos data.status === 'active'
+                                if (std.status === 'active') {
+                                    updateStatusBadge(true);
+                                    Toast.show("¡WhatsApp Vinculado Exitosamente!", "success");
+                                    clearInterval(pollingInterval);
+                                    pollingInterval = null;
+                                }
+                            } catch (err) { /* ignorar */ }
+                        }, 5000);
                     }
+                } else if (data.status === 'session_exists') {
+                    updateStatusBadge(true);
+                    Toast.show("Bot ya estaba conectado", "success");
+                } else if (data.status === 'timeout') {
+                    Toast.show("El código QR ha expirado. Intenta de nuevo.", "warning");
+                    updateStatusBadge(false);
+                } else if (data.status === 'pending_payment') {
+                    Toast.show("Pago pendiente. Espera confirmación del administrador.", "info");
+                    updateStatusBadge(false);
                 } else {
-                    Toast.show(data.error || "Error al conectar", "error");
+                    // Cualquier otro estado (error, etc.)
+                    Toast.show(data.message || "Error al conectar", "error");
                     updateStatusBadge(false);
                 }
             } catch (err) {
-                document.getElementById('loader').style.display = 'none';
+                loader.style.display = 'none';
                 Toast.show("Error de red", "error");
                 updateStatusBadge(false);
             }
