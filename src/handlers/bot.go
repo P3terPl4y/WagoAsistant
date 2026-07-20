@@ -64,7 +64,7 @@ func (h *BotHandler) StartBot(c fiber.Ctx) error {
 	if role == "admin" {
 		status = "free"
 	}
-	sessionFile := fmt.Sprintf("whatsapp_bot%d.db", 0)
+	sessionFile := fmt.Sprintf("whatsapp_bot%d.db", userID)
 	newID, err := h.botRepo.Create(ctx, userID, sessionFile, status)
 	if err != nil {
 		return c.JSON(fiber.Map{"status": "error", "message": "Error al crear bot"})
