@@ -56,12 +56,11 @@ type AIConfig struct {
 // Load builds a Config. All values have defaults; environment variables override them.
 func Load() *Config {
 	cfg := &Config{
-		Environment: env("APP_ENV", "production"),
-		ServerAddr:  env("SERVER_ADDR", "0.0.0.0:3000"),
-		BaseURL:     env("BASE_URL", "https://wago.redcliente.cl"),
-		DatabaseURL: env("DATABASE_URL", "postgres://gowa:go-wa333P3ter*@localhost:5432/gowa_db?sslmode=disable"),
-		RedisURL:    os.Getenv("REDIS_URL"),
-
+		Environment:   env("APP_ENV", "production"),
+		ServerAddr:    env("SERVER_ADDR", "0.0.0.0:3000"),
+		BaseURL:       env("BASE_URL", "https://wago.redcliente.cl"),
+		DatabaseURL:   env("DATABASE_URL", "postgres://gowa:go-wa333P3ter*@localhost:5432/wago?sslmode=disable"),
+		RedisURL:      os.Getenv("REDIS_URL"),
 		AdminUsername: env("ADMIN_USERNAME", "admin"),
 		AdminEmail:    env("ADMIN_EMAIL", "admin@wago.cl"),
 		AdminPhone:    env("ADMIN_PHONE", "+5351652038"),

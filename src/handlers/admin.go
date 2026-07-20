@@ -67,7 +67,6 @@ func (h *AdminHandler) GetAllBotsStatus(c fiber.Ctx) error {
 	}
 	return c.JSON(fiber.Map{"bots": result})
 }
-
 func (h *AdminHandler) CreateBot(c fiber.Ctx) error {
 	var req struct {
 		UserID int `json:"user_id"`
@@ -92,6 +91,7 @@ func (h *AdminHandler) CreateBot(c fiber.Ctx) error {
 	sessionFile := fmt.Sprintf("whatsapp_bot%d.db", 0)
 	botID, err := h.botRepo.Create(c, req.UserID, sessionFile, "free")
 	if err != nil {
+		fmt.Println(err)
 		return c.Status(500).JSON(fiber.Map{"error": "Error al crear bot"})
 	}
 	newSessionFile := fmt.Sprintf("whatsapp_bot%d.db", botID)

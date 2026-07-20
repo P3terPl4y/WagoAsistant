@@ -4,8 +4,10 @@ import (
 	"App/src/adapters/ai"
 	"App/src/adapters/encryption"
 	adapterRedis "App/src/adapters/redis"
-	//"App/src/adapters/sqlite"
-	"App/src/adapters/postgre"
+
+	"App/src/adapters/sqlite"
+
+	//"App/src/adapters/postgre"
 	"App/src/app"
 	"App/src/config"
 	"App/src/handlers"
@@ -35,7 +37,7 @@ func main() {
 	log := logger.New(cfg.Environment)
 	log.Info().Str("env", cfg.Environment).Msg("Starting Wago")
 
-	/*// ============================================================
+	// ============================================================
 	// 2. DATABASE (sqlite)
 	// ============================================================
 	db := sqlite.Connect("./src/db/db", log)
@@ -51,25 +53,25 @@ func main() {
 	promptRepo := sqlite.NewPromptRepo(db)
 	subRepo := sqlite.NewSubscriptionRepo(db)
 	oauthRepo := sqlite.NewOAuthRepo(db)
-*/
-	// ============================================================
-	// 2. DATABASE (Postgre)
-	// ============================================================
-	db := postgre.Connect(cfg.DatabaseURL, log)
-	defer db.Close()
-	postgre.EnsureAdmin(db, cfg.AdminUsername, cfg.AdminEmail, cfg.AdminPhone, cfg.AdminPass, log)
+	/*
+		// ============================================================
+		// 2. DATABASE (Postgre)
+		// ============================================================
+		db := postgre.Connect(cfg.DatabaseURL, log)
+		defer db.Close()
+		postgre.EnsureAdmin(db, cfg.AdminUsername, cfg.AdminEmail, cfg.AdminPhone, cfg.AdminPass, log)
 
+		// ============================================================
+		// 3. REPOSITORIES
+		// ============================================================
+		userRepo := postgre.NewUserRepo(db)
+		botRepo := postgre.NewBotRepo(db)
+		chatRepo := postgre.NewChatRepo(db)
+		promptRepo := postgre.NewPromptRepo(db)
+		subRepo := postgre.NewSubscriptionRepo(db)
+		oauthRepo := postgre.NewOAuthRepo(db)
+	*/
 	// ============================================================
-	// 3. REPOSITORIES
-	// ============================================================
-	userRepo := postgre.NewUserRepo(db)
-	botRepo := postgre.NewBotRepo(db)
-	chatRepo := postgre.NewChatRepo(db)
-	promptRepo := postgre.NewPromptRepo(db)
-	subRepo := postgre.NewSubscriptionRepo(db)
-	oauthRepo := postgre.NewOAuthRepo(db)
-
-	 // ============================================================
 	// 4. REDIS (optional)
 	// ============================================================
 	redisCache := adapterRedis.Connect(cfg.RedisURL, log)
