@@ -85,7 +85,7 @@ func (s *BotService) GetContainer(botID int) *sqlstore.Container {
 	dbLog := waLog.Stdout("Database", "WARN", true)
 
 	// Use postgres for WhatsApp session storage
-	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(on)", fmt.Sprintf("./src/db/whatsapp_bot%d.db", botID))
+	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(on)", fmt.Sprintf("whatsapp_bot%d.db", botID))
 	container, err := sqlstore.New(ctx, "sqlite", dsn, dbLog)
 	if err != nil {
 		s.logger.Fatal().Err(err).Int("bot_id", botID).Msg("Failed to init session container with postgres")
