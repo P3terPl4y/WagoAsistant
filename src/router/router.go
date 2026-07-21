@@ -24,7 +24,7 @@ func Setup(
 ) {
 	// CORS: allow everything so nothing gets blocked behind reverse proxies
 	app.Use(cors.New(cors.Config{
-		AllowOriginsFunc: func(origin string) bool { return true },
+		AllowOrigins:     []string{"https://wago.redcliente.cl", "http://localhost:3000"},
 		AllowCredentials: true,
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "X-CSRF-Token", "Authorization"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
