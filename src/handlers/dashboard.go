@@ -42,7 +42,7 @@ func (h *DashboardHandler) Render(c fiber.Ctx) error {
 	var tier string = "free"
 	var msgLimit int = 10
 	var usage int = 0
-	
+
 	if len(bots) == 0 {
 		botInfo = "No tienes ningún bot. Crea uno desde aquí."
 	} else {
@@ -52,7 +52,7 @@ func (h *DashboardHandler) Render(c fiber.Ctx) error {
 		botInfo = fmt.Sprintf("Bot ID: %d | Bloqueado: %v | Pago: %s", bot.ID, bot.Blocked, bot.PaymentStatus)
 		prompt, _ := h.promptRepo.Get(c, bot.ID)
 		currentPrompt = prompt
-		
+
 		sub, err := h.subRepo.Get(c, bot.ID)
 		if err == nil && sub != nil {
 			tier = sub.Tier
@@ -65,8 +65,8 @@ func (h *DashboardHandler) Render(c fiber.Ctx) error {
 	_ = botInfo
 
 	// Inject JS variables and serve the existing dashboard template
-	html := fmt.Sprintf(`<script>window.botID=%d;window.userDisplay=%q;window.userEmail=%q;window.userPhone=%q;window.userRole=%q;window.paymentStatus=%q;window.currentPrompt=%q;window.tier=%q;window.msgLimit=%d;window.usage=%d;</script>`,
-		botID, user.Username, user.Email, user.Phone, role, paymentStatus, currentPrompt, tier, msgLimit, usage)
+	html := fmt.Sprintf(`<script>window.userID=%d;window.botID=%d;window.userDisplay=%q;window.userEmail=%q;window.userPhone=%q;window.userRole=%q;window.paymentStatus=%q;window.currentPrompt=%q;window.tier=%q;window.msgLimit=%d;window.usage=%d;</script>`,
+		userID, botID, user.Username, user.Email, user.Phone, role, paymentStatus, currentPrompt, tier, msgLimit, usage)
 
 	// Read and serve the dashboard HTML file with injected variables
 	content, err := os.ReadFile("./src/static/dashboard.html")

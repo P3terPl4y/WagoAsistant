@@ -4,7 +4,6 @@ import (
 	"App/src/domain"
 	"context"
 	"database/sql"
-	"fmt"
 )
 
 // UserRepo implements ports.UserRepository using SQLite.
@@ -107,7 +106,6 @@ func (r *UserRepo) CheckDuplicate(ctx context.Context, username, email, phone st
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM users WHERE username = ? OR email = ? OR phone = ?`,
 		username, email, phone).Scan(&count)
-	fmt.Println("EEEE")
 	return count > 0, err
 }
 

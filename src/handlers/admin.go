@@ -88,13 +88,12 @@ func (h *AdminHandler) CreateBot(c fiber.Ctx) error {
 	if count >= h.maxBots {
 		return c.Status(400).JSON(fiber.Map{"error": fmt.Sprintf("El usuario ya tiene %d bots (límite %d)", count, h.maxBots)})
 	}
-	sessionFile := fmt.Sprintf("whatsapp_bot%d.db",req.UserID)
+	sessionFile := fmt.Sprintf("./src/db/whatsapp_bot%d.db", req.UserID)
 	botID, err := h.botRepo.Create(c, req.UserID, sessionFile, "free")
 	if err != nil {
-		fmt.Println(err)
 		return c.Status(500).JSON(fiber.Map{"error": "Error al crear bot"})
 	}
-	newSessionFile := fmt.Sprintf("whatsapp_bot%d.db", botID)
+	newSessionFile := fmt.Sprintf("./src/db/whatsapp_bot%d.db", botID)
 	_ = h.botRepo.UpdateSessionFile(c, botID, newSessionFile)
 	return c.JSON(fiber.Map{"status": "ok", "bot_id": botID})
 }
