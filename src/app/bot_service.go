@@ -85,7 +85,7 @@ func (s *BotService) GetContainer(botID int) *sqlstore.Container {
 	dbLog := waLog.Stdout("Database", "WARN", true)
 
 	// Use postgres for WhatsApp session storage
-	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(on)", fmt.Sprintf("whatsapp_bot%d.db", botID))
+	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(on)", fmt.Sprintf("./src/db/whatsapp_bot%d.db", botID))
 	container, err := sqlstore.New(ctx, "sqlite", dsn, dbLog)
 	if err != nil {
 		s.logger.Fatal().Err(err).Int("bot_id", botID).Msg("Failed to init session container with postgres")
@@ -298,7 +298,7 @@ func (s *BotService) switchHandler(client *whatsmeow.Client, userKey string, bot
 	blocked := s.blocked[recipient]
 	if blocked {
 		switch {
-		case txt == "-start":
+		case txt == "-start" || txt == "Hola bot" || txt == "Activate":
 			delete(s.blocked, recipient)
 			s.logger.Info().Int("bot_id", botID).Str("recipient", recipient.String()).Msg("Bot resumed")
 		case strings.Contains(txt, "@Bot"):
@@ -308,7 +308,7 @@ func (s *BotService) switchHandler(client *whatsmeow.Client, userKey string, bot
 	}
 
 	switch {
-	case txt == "-stop":
+	case txt == "-stop" || txt == "Adios bot" || txt == "Desactivate":
 		s.blocked[recipient] = true
 		s.logger.Info().Int("bot_id", botID).Str("recipient", recipient.String()).Msg("Bot paused")
 	case strings.Contains(txt, "Pedido:") || strings.Contains(txt, "Agendar Cita:"):
