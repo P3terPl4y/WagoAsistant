@@ -24,7 +24,6 @@ func Setup(
 ) {
 	// CORS: allow everything so nothing gets blocked behind reverse proxies
 	app.Use(cors.New(cors.Config{
-		AllowOriginsFunc: func(origin string) bool { return true },
 		AllowCredentials: true,
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "X-CSRF-Token", "Authorization"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
@@ -32,8 +31,8 @@ func Setup(
 
 	// Rate limiter
 	lim := limiter.New(limiter.Config{
-		Max:        rateLimitPerMinute,
-		Expiration: 1 * time.Minute,
+		Max:          rateLimitPerMinute,
+		Expiration:   1 * time.Minute,
 		KeyGenerator: func(c fiber.Ctx) string { return c.IP() },
 		LimitReached: func(c fiber.Ctx) error {
 			return c.Status(429).JSON(fiber.Map{"error": "Demasiadas peticiones. Intenta de nuevo en un minuto."})
