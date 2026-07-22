@@ -56,7 +56,7 @@ func (h *BotHandler) StartBot(c fiber.Ctx) error {
 		if h.botMgr.IsActive(bot.ID) {
 			return c.JSON(fiber.Map{"status": "session_exists", "id": bot.ID})
 		}
-		return h.launchBot(c, bot.ID)
+		return h.LaunchBot(c, bot.ID)
 	}
 
 	// Create new bot
@@ -73,12 +73,12 @@ func (h *BotHandler) StartBot(c fiber.Ctx) error {
 	_ = h.botRepo.UpdateSessionFile(ctx, newID, newSessionFile)
 
 	if role == "admin" {
-		return h.launchBot(c, newID)
+		return h.LaunchBot(c, newID)
 	}
 	return c.JSON(fiber.Map{"status": "pending_payment", "id": newID, "payment_status": "pending", "message": "Bot creado. Se requiere confirmación de pago por parte del administrador."})
 }
 
-func (h *BotHandler) launchBot(c fiber.Ctx, botID int) error {
+func (h *BotHandler) LaunchBot(c fiber.Ctx, botID int) error {
 	qrResult := make(chan string, 1)
 	go h.botSvc.InitBot(botID, qrResult)
 	select {

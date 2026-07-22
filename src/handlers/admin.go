@@ -9,14 +9,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"go.mau.fi/whatsmeow/types"
 )
 
 // AdminHandler handles admin-only HTTP endpoints.
 type AdminHandler struct {
 	userSvc    *app.UserService
+	botSvc     *app.BotService
 	botRepo    ports.BotRepository
 	promptRepo ports.PromptRepository
 	botMgr     *concurrency.BotManager
@@ -26,8 +29,8 @@ type AdminHandler struct {
 	maxBots    int
 }
 
-func NewAdminHandler(userSvc *app.UserService, botRepo ports.BotRepository, promptRepo ports.PromptRepository, botMgr *concurrency.BotManager, db *sql.DB, cache ports.CacheService, log logger.Logger, maxBots int) *AdminHandler {
-	return &AdminHandler{userSvc: userSvc, botRepo: botRepo, promptRepo: promptRepo, botMgr: botMgr, db: db, cache: cache, logger: log.WithComponent("admin_handler"), maxBots: maxBots}
+func NewAdminHandler(userSvc *app.UserService, botSvc *app.BotService, botRepo ports.BotRepository, promptRepo ports.PromptRepository, botMgr *concurrency.BotManager, db *sql.DB, cache ports.CacheService, log logger.Logger, maxBots int) *AdminHandler {
+	return &AdminHandler{userSvc: userSvc, botSvc: botSvc, botRepo: botRepo, promptRepo: promptRepo, botMgr: botMgr, db: db, cache: cache, logger: log.WithComponent("admin_handler"), maxBots: maxBots}
 }
 
 func (h *AdminHandler) ListUsers(c fiber.Ctx) error {
@@ -88,13 +91,16 @@ func (h *AdminHandler) CreateBot(c fiber.Ctx) error {
 	if count >= h.maxBots {
 		return c.Status(400).JSON(fiber.Map{"error": fmt.Sprintf("El usuario ya tiene %d bots (límite %d)", count, h.maxBots)})
 	}
-	sessionFile := fmt.Sprintf("./src/db/whatsapp_bot%d.db", req.UserID)
+	sessionFile := fmt.Sprintf("./src/db/whatsapp_bot%d.db", 0)
 	botID, err := h.botRepo.Create(c, req.UserID, sessionFile, "free")
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Error al crear bot"})
 	}
 	newSessionFile := fmt.Sprintf("./src/db/whatsapp_bot%d.db", botID)
-	_ = h.botRepo.UpdateSessionFile(c, botID, newSessionFile)
+	err = h.botRepo.UpdateSessionFile(c, botID, newSessionFile)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Error al actualizar la session"})
+	}
 	return c.JSON(fiber.Map{"status": "ok", "bot_id": botID})
 }
 
@@ -112,6 +118,25 @@ func (h *AdminHandler) ConfirmPayment(c fiber.Ctx) error {
 	}
 	if err := h.botRepo.UpdatePaymentStatus(c, botID, "paid"); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Error al actualizar estado de pago"})
+	}
+
+	user, err := h.userSvc.GetByID(c, bot.UserID)
+	if err != nil || user == nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Error al notificar estado de pago"})
+	}
+	phone := strings.TrimPrefix(user.Phone, "+")
+	if phone == "" {
+		return c.Status(500).JSON(fiber.Map{"error": "Error al convertir numero"})
+	}
+	userJID, err := types.ParseJID(phone + "@s.whatsapp.net")
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Error al convertir JID"})
+	}
+	err = h.botSvc.NotifyAdmin(botID, userJID, "Ya puedes iniciar tu Asistente")
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err})
+	} else {
+		fmt.Printf("Notificacion enviada a: %s", phone)
 	}
 	return c.JSON(fiber.Map{"status": "ok", "message": "Pago confirmado."})
 }

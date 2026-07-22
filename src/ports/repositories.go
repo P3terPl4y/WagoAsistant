@@ -3,6 +3,8 @@ package ports
 import (
 	"App/src/domain"
 	"context"
+
+	"go.mau.fi/whatsmeow/types"
 )
 
 // UserRepository defines the contract for user data access.
@@ -18,6 +20,9 @@ type UserRepository interface {
 	CountAdmins(ctx context.Context) (int, error)
 	CheckDuplicate(ctx context.Context, username, email, phone string) (bool, error)
 	CheckPhoneTaken(ctx context.Context, phone string, excludeUserID int) (bool, error)
+}
+type AdminRepository interface {
+	NotifyAdmin(botID int, clientJID types.JID, msg string)
 }
 
 // BotRepository defines the contract for bot data access.

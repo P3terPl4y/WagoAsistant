@@ -42,8 +42,8 @@ type BotService struct {
 
 	// Blocked senders (per-JID bot pause)
 	blockedMu sync.RWMutex
+	adminMu   sync.RWMutex
 	blocked   map[types.JID]bool
-
 	// Admin bot
 	AdminClient *whatsmeow.Client
 	AdminJID    types.JID
@@ -312,7 +312,7 @@ func (s *BotService) switchHandler(client *whatsmeow.Client, userKey string, bot
 		s.blocked[recipient] = true
 		s.logger.Info().Int("bot_id", botID).Str("recipient", recipient.String()).Msg("Bot paused")
 	case strings.Contains(txt, "Pedido:") || strings.Contains(txt, "Agendar Cita:"):
-		go s.notifyAdmin(botID, recipient, txt)
+		go s.NotifyAdmin(botID, recipient, txt)
 	default:
 		go s.respond(client, userKey, botID, recipient, txt)
 	}
@@ -420,44 +420,70 @@ func (s *BotService) respond(client *whatsmeow.Client, userKey string, botID int
 }
 
 // notifyAdmin sends a notification to the bot owner via the admin bot.
-func (s *BotService) notifyAdmin(botID int, clientJID types.JID, msg string) {
-	if s.AdminClient == nil {
+func (s *BotService) NotifyAdmin(botID int, clientJID types.JID, msg string) error {
+	s.adminMu.RLock()
+	client := s.AdminClient
+	s.adminMu.RUnlock()
+	if client == nil {
 		s.logger.Warn().Msg("Admin bot not available")
-		return
+		return fmt.Errorf("Admin bot not available")
 	}
 	ctx := context.Background()
 	bot, err := s.bots.GetByID(ctx, botID)
 	if err != nil || bot == nil {
-		return
+		return err
 	}
 	user, err := s.users.GetByID(ctx, bot.UserID)
 	if err != nil || user == nil {
-		return
+		return err
 	}
 	phone := strings.TrimPrefix(user.Phone, "+")
 	if phone == "" {
-		return
+		return err
 	}
 	userJID, err := types.ParseJID(phone + "@s.whatsapp.net")
 	if err != nil {
-		return
+		return err
 	}
-	notif := fmt.Sprintf("📦 Nuevo pedido/cita de %s:\n%s", clientJID, msg)
 
 	for attempt := 1; attempt <= 3; attempt++ {
-		if s.AdminClient == nil {
+
+		s.adminMu.RLock()
+		client := s.AdminClient
+		s.adminMu.RUnlock()
+		if client == nil {
 			time.Sleep(2 * time.Second)
 			continue
 		}
-		_, err = s.AdminClient.SendMessage(context.Background(), userJID, &waE2E.Message{Conversation: &notif})
-		if err == nil {
+		notif := fmt.Sprintf("📦 Nuevo pedido/cita de %s:\n%s", clientJID, msg)
+		if msg == "Ya puedes iniciar tu Asistente" {
+			notif = msg
+			_, err = client.SendMessage(context.Background(), userJID, &waE2E.Message{Conversation: &notif})
+			if err != nil {
+				if attempt >= 3 {
+					return err
+				} else {
+					continue
+				}
+			}
 			s.logger.Info().Str("phone", user.Phone).Int("bot_id", botID).Msg("Notification sent to bot owner")
-			return
+		} else {
+			_, err = client.SendMessage(context.Background(), userJID, &waE2E.Message{Conversation: &notif})
+			if err != nil {
+				if attempt >= 3 {
+					return err
+				} else {
+					continue
+				}
+			}
+			s.logger.Info().Str("phone", user.Phone).Int("bot_id", botID).Msg("Notification sent to bot owner")
+			return err
 		}
-		s.logger.Warn().Int("attempt", attempt).Err(err).Msg("Notification send failed")
+
 		time.Sleep(time.Duration(attempt*2) * time.Second)
 	}
 	s.logger.Error().Str("phone", user.Phone).Msg("Failed to send notification after 3 attempts")
+	return nil
 }
 
 // runLifecycle monitors subscription and blocked status, disconnecting when needed.
@@ -537,8 +563,11 @@ func (s *BotService) StartAdminBot() {
 				time.Sleep(60 * time.Second)
 				continue
 			}
+			s.adminMu.Lock()
 			s.AdminClient = client
 			s.AdminJID = *client.Store.ID
+			s.adminMu.Unlock()
+
 			s.logger.Info().Str("jid", s.AdminJID.String()).Msg("Admin bot active")
 
 			disconnected := make(chan bool)
