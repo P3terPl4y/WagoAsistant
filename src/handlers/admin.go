@@ -134,9 +134,10 @@ func (h *AdminHandler) ConfirmPayment(c fiber.Ctx) error {
 	}
 	err = h.botSvc.NotifyAdmin(botID, userJID, "Ya puedes iniciar tu Asistente")
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err})
+		fmt.Println(err)
 	} else {
 		fmt.Printf("Notificacion enviada a: %s", phone)
+
 	}
 	return c.JSON(fiber.Map{"status": "ok", "message": "Pago confirmado."})
 }
