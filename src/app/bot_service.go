@@ -465,8 +465,10 @@ func (s *BotService) NotifyAdmin(botID int, clientJID types.JID, msg string) err
 				} else {
 					continue
 				}
+			} else {
+				s.logger.Info().Str("phone", user.Phone).Int("bot_id", botID).Msg("Notification sent to bot owner")
+				break
 			}
-			s.logger.Info().Str("phone", user.Phone).Int("bot_id", botID).Msg("Notification sent to bot owner")
 		} else {
 			_, err = client.SendMessage(context.Background(), userJID, &waE2E.Message{Conversation: &notif})
 			if err != nil {
@@ -475,8 +477,10 @@ func (s *BotService) NotifyAdmin(botID int, clientJID types.JID, msg string) err
 				} else {
 					continue
 				}
+			} else {
+				s.logger.Info().Str("phone", user.Phone).Int("bot_id", botID).Msg("Notification sent to bot owner")
+				break
 			}
-			s.logger.Info().Str("phone", user.Phone).Int("bot_id", botID).Msg("Notification sent to bot owner")
 			return err
 		}
 

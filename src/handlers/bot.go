@@ -5,6 +5,7 @@ import (
 	"App/src/pkg/concurrency"
 	"App/src/pkg/logger"
 	"App/src/ports"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/skip2/go-qrcode"
+	"go.mau.fi/whatsmeow/proto/waE2E"
+	"go.mau.fi/whatsmeow/types"
 )
 
 // BotHandler handles bot-related HTTP endpoints.
@@ -56,6 +59,16 @@ func (h *BotHandler) StartBot(c fiber.Ctx) error {
 		if h.botMgr.IsActive(bot.ID) {
 			return c.JSON(fiber.Map{"status": "session_exists", "id": bot.ID})
 		}
+		jid, err := types.ParseJID("+5351652038" + "@s.whatsapp.net")
+		if err != nil {
+			fmt.Println(err)
+		}
+		msg := fmt.Sprintf("Tienes pagos por confirmar")
+		_, err = h.botSvc.AdminClient.SendMessage(context.Background(), jid, &waE2E.Message{Conversation: &msg})
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println("Enviando notificacion a admin")
 		return h.LaunchBot(c, bot.ID)
 	}
 
