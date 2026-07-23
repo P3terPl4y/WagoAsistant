@@ -9,6 +9,7 @@ import (
 	"App/src/ports"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -84,14 +85,21 @@ func (s *BotService) GetContainer(botID int) *sqlstore.Container {
 	if c, ok := s.containers[botID]; ok {
 		return c
 	}
+
+	// Crear directorio si no existe
+	dir := "./src/db"
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		s.logger.Fatal().Err(err).Str("dir", dir).Msg("Failed to create session db directory")
+	}
+
 	ctx := context.Background()
 	dbLog := waLog.Stdout("Database", "WARN", true)
 
-	// Añadir _busy_timeout=10000 (10 segundos) y _journal_mode=WAL
-	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(on)&_busy_timeout=10000&_journal_mode=WAL",
-		fmt.Sprintf("./src/db/whatsapp_bot%d.db", botID))
+	// DSN correcta: _fk=true habilita foreign keys, _busy_timeout=10000, _journal_mode=WAL
+	dsn := fmt.Sprintf("file:%s?_fk=true&_busy_timeout=10000&_journal_mode=WAL",
+		fmt.Sprintf("%s/whatsapp_bot%d.db", dir, botID))
 
-	container, err := sqlstore.New(ctx, "sqlite3", dsn, dbLog)
+	container, err := sqlstore.New(ctx, "sqlite", dsn, dbLog)
 	if err != nil {
 		s.logger.Fatal().Err(err).Int("bot_id", botID).Msg("Failed to init session container")
 	}
