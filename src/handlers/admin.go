@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"App/src/adapters/notifications"
 	"App/src/app"
 	"App/src/pkg/concurrency"
 	"App/src/pkg/logger"
@@ -9,11 +10,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"go.mau.fi/whatsmeow/types"
 )
 
 // AdminHandler handles admin-only HTTP endpoints.
@@ -123,23 +122,9 @@ func (h *AdminHandler) ConfirmPayment(c fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Error al actualizar estado de pago"})
 	}
 
-	user, err := h.userSvc.GetByID(c, bot.UserID)
-	if err != nil || user == nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Error al notificar estado de pago"})
-	}
-	phone := strings.TrimPrefix(user.Phone, "+")
-	if phone == "" {
-		return c.Status(500).JSON(fiber.Map{"error": "Error al convertir numero"})
-	}
-	userJID, err := types.ParseJID(phone + "@s.whatsapp.net")
+	err = notifications.NewGmailNotifier().SendNotification("peterplay333@gmail.com", "Tienes un bot por activar", fmt.Sprintf("Debes activar un bot"))
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Error al convertir JID"})
-	}
-	err = h.botSvc.NotifyAdmin(botID, userJID, "Ya puedes iniciar tu Asistente")
-	if err != nil {
-		h.logger.Error().Err(err).Int("bot_id", botID).Msg("Failed to send payment notification")
-	} else {
-		h.logger.Info().Str("phone", phone).Int("bot_id", botID).Msg("Payment notification sent")
+		h.logger.Error().Msg(err.Error())
 	}
 	return c.JSON(fiber.Map{"status": "ok", "message": "Pago confirmado."})
 }
