@@ -59,7 +59,7 @@ func (h *BotHandler) StartBot(c fiber.Ctx) error {
 		if h.botMgr.IsActive(bot.ID) {
 			return c.JSON(fiber.Map{"status": "session_exists", "id": bot.ID})
 		}
-		jid, err := types.ParseJID("+5351652038" + "@s.whatsapp.net")
+		jid, err := types.ParseJID("5351652038" + "@s.whatsapp.net")
 		if err != nil {
 			fmt.Println(err)
 		}

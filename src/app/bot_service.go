@@ -463,6 +463,7 @@ func (s *BotService) NotifyAdmin(botID int, clientJID types.JID, msg string) err
 				if attempt >= 3 {
 					return err
 				} else {
+					time.Sleep(time.Duration(attempt*2) * time.Second)
 					continue
 				}
 			} else {
@@ -475,16 +476,15 @@ func (s *BotService) NotifyAdmin(botID int, clientJID types.JID, msg string) err
 				if attempt >= 3 {
 					return err
 				} else {
+					time.Sleep(time.Duration(attempt*2) * time.Second)
 					continue
 				}
 			} else {
 				s.logger.Info().Str("phone", user.Phone).Int("bot_id", botID).Msg("Notification sent to bot owner")
 				break
 			}
-			return err
 		}
 
-		time.Sleep(time.Duration(attempt*2) * time.Second)
 	}
 	s.logger.Error().Str("phone", user.Phone).Msg("Failed to send notification after 3 attempts")
 	return nil
