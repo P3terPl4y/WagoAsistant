@@ -133,6 +133,7 @@ func (h *AdminHandler) ConfirmPayment(c fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Error al convertir JID"})
 	}
 	err = h.botSvc.NotifyAdmin(botID, userJID, "Ya puedes iniciar tu Asistente")
+	fmt.Println("YA")
 	if err != nil {
 		fmt.Println(err)
 	} else {
