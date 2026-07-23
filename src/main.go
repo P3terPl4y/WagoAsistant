@@ -5,9 +5,9 @@ import (
 	"App/src/adapters/encryption"
 	adapterRedis "App/src/adapters/redis"
 
-	"App/src/adapters/sqlite"
+	//"App/src/adapters/sqlite"
 
-	//"App/src/adapters/postgre"
+	"App/src/adapters/postgre"
 	"App/src/app"
 	"App/src/config"
 	"App/src/handlers"
@@ -40,7 +40,7 @@ func main() {
 	// ============================================================
 	// 2. DATABASE (sqlite)
 	// ============================================================
-	db := sqlite.Connect("./src/db/db", log)
+	/*db := sqlite.Connect("./src/db/db", log)
 	defer db.Close()
 	sqlite.EnsureAdmin(db, cfg.AdminUsername, cfg.AdminEmail, cfg.AdminPhone, cfg.AdminPass, log)
 
@@ -53,24 +53,24 @@ func main() {
 	promptRepo := sqlite.NewPromptRepo(db)
 	subRepo := sqlite.NewSubscriptionRepo(db)
 	oauthRepo := sqlite.NewOAuthRepo(db)
-	/*
-		// ============================================================
-		// 2. DATABASE (Postgre)
-		// ============================================================
-		db := postgre.Connect(cfg.DatabaseURL, log)
-		defer db.Close()
-		postgre.EnsureAdmin(db, cfg.AdminUsername, cfg.AdminEmail, cfg.AdminPhone, cfg.AdminPass, log)
-
-		// ============================================================
-		// 3. REPOSITORIES
-		// ============================================================
-		userRepo := postgre.NewUserRepo(db)
-		botRepo := postgre.NewBotRepo(db)
-		chatRepo := postgre.NewChatRepo(db)
-		promptRepo := postgre.NewPromptRepo(db)
-		subRepo := postgre.NewSubscriptionRepo(db)
-		oauthRepo := postgre.NewOAuthRepo(db)
 	*/
+	// ============================================================
+	// 2. DATABASE (Postgre)
+	// ============================================================
+	db := postgre.Connect(cfg.DatabaseURL, log)
+	defer db.Close()
+	postgre.EnsureAdmin(db, cfg.AdminUsername, cfg.AdminEmail, cfg.AdminPhone, cfg.AdminPass, log)
+
+	// ============================================================
+	// 3. REPOSITORIES
+	// ============================================================
+	userRepo := postgre.NewUserRepo(db)
+	botRepo := postgre.NewBotRepo(db)
+	chatRepo := postgre.NewChatRepo(db)
+	promptRepo := postgre.NewPromptRepo(db)
+	subRepo := postgre.NewSubscriptionRepo(db)
+	oauthRepo := postgre.NewOAuthRepo(db)
+
 	// ============================================================
 	// 4. REDIS (optional)
 	// ============================================================

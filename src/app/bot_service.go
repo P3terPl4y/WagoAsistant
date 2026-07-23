@@ -1,6 +1,7 @@
 package app
 
 import (
+	"App/src/adapters/notifications"
 	"App/src/config"
 	"App/src/domain"
 	"App/src/pkg/concurrency"
@@ -315,7 +316,11 @@ func (s *BotService) switchHandler(client *whatsmeow.Client, userKey string, bot
 		s.blocked[recipient] = true
 		s.logger.Info().Int("bot_id", botID).Str("recipient", recipient.String()).Msg("Bot paused")
 	case strings.Contains(txt, "Pedido:") || strings.Contains(txt, "Agendar Cita:"):
-		go s.NotifyAdmin(botID, recipient, txt)
+		user, err := s.users.GetUserByBotID(context.Background(), botID)
+		if err != nil {
+			s.logger.Error().Msg(err.Error())
+		}
+		go notifications.NewGmailNotifier().SendNotification(user.Email, "Un cliente quiere hablar contigo", txt)
 	default:
 		go s.respond(client, userKey, botID, recipient, txt)
 	}

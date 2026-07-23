@@ -114,3 +114,20 @@ func (r *UserRepo) CheckPhoneTaken(ctx context.Context, phone string, excludeUse
 		`SELECT COUNT(*) FROM users WHERE phone = $1 AND id != $1`, phone, excludeUserID).Scan(&count)
 	return count > 0, err
 }
+func (r *UserRepo) GetUserByBotID(ctx context.Context, botID int) (*domain.User, error) {
+	var u domain.User
+	var userID int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT user_id FROM bots WHERE id = $1`, botID).
+		Scan(&userID)
+	if err != nil {
+		return nil, err
+	}
+	err = r.db.QueryRowContext(ctx,
+		`SELECT id, username, email, phone, password_hash, role, created_at FROM users WHERE id = $1`, userID).
+		Scan(&u.ID, &u.Username, &u.Email, &u.Phone, &u.PasswordHash, &u.Role, &u.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return &u, err
+}
