@@ -121,7 +121,7 @@ func EnsureAdmin(db *sql.DB, username, email, phone, password string, log logger
 	if count == 0 {
 		hashed, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		_, err := db.Exec(
-			`INSERT INTO users (username, email, phone, password_hash, role) VALUES ($1, $2 $3, $4, 'admin')`,
+			`INSERT INTO users (username, email, phone, password_hash, role) VALUES ($1, $2, $3, $4, 'admin')`,
 			username, email, phone, string(hashed),
 		)
 		if err != nil {
