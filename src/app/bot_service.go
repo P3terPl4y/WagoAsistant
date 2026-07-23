@@ -47,6 +47,7 @@ type BotService struct {
 	// Admin bot
 	AdminClient *whatsmeow.Client
 	AdminJID    types.JID
+	AdminBotID  int
 }
 
 // NewBotService creates a new BotService with all dependencies.
@@ -328,13 +329,15 @@ func (s *BotService) respond(client *whatsmeow.Client, userKey string, botID int
 	}
 
 	ctx := context.Background()
-
+	s.adminMu.RLock()
+	adminBotId := s.AdminBotID
+	s.adminMu.RUnlock()
 	// Enforce daily rate limit based on tier
 	if s.cache != nil && s.cache.Available() {
 		sub, err := s.subs.Get(ctx, botID)
 		if err == nil && sub != nil && sub.MsgLimit != -1 {
 			usage, err := s.cache.IncrementUsage(ctx, botID)
-			if err == nil && usage > sub.MsgLimit {
+			if err == nil && usage > sub.MsgLimit && botID != adminBotId {
 				log.Warn().Int("usage", usage).Int("limit", sub.MsgLimit).Msg("Rate limit exceeded")
 				limitMsg := "🤖 Has superado el límite diario de mensajes para tu plan de suscripción."
 				_, _ = client.SendMessage(ctx, recipient, &waE2E.Message{Conversation: &limitMsg})
@@ -529,7 +532,9 @@ func (s *BotService) StartAdminBot() {
 		return
 	}
 	adminBot := bots[0]
-
+	s.adminMu.Lock()
+	s.AdminBotID = adminBot.ID
+	s.adminMu.Unlock()
 	go func() {
 		backoff := 5 * time.Second
 		const maxBackoff = 2 * time.Minute
