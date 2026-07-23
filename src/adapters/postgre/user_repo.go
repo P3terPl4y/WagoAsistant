@@ -6,12 +6,11 @@ import (
 	"database/sql"
 )
 
-// UserRepo implements ports.UserRepository using SQLite.
+// UserRepo implements ports.UserRepository using PostgreSQL.
 type UserRepo struct {
 	db *sql.DB
 }
 
-// NewUserRepo creates a new UserRepo.
 func NewUserRepo(db *sql.DB) *UserRepo {
 	return &UserRepo{db: db}
 }
@@ -50,17 +49,14 @@ func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*domain.User, 
 }
 
 func (r *UserRepo) Create(ctx context.Context, username, email, phone, passwordHash string) (*domain.User, error) {
-	res, err := r.db.ExecContext(ctx,
-		`INSERT INTO users (username, email, phone, password_hash) VALUES ($1, $2, $3, $4)`,
-		username, email, phone, passwordHash)
+	var id int
+	err := r.db.QueryRowContext(ctx,
+		`INSERT INTO users (username, email, phone, password_hash) VALUES ($1, $2, $3, $4) RETURNING id`,
+		username, email, phone, passwordHash).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return nil, err
-	}
-	return r.GetByID(ctx, int(id))
+	return r.GetByID(ctx, id)
 }
 
 func (r *UserRepo) UpdatePassword(ctx context.Context, userID int, passwordHash string) error {
@@ -79,7 +75,9 @@ func (r *UserRepo) Delete(ctx context.Context, id int) error {
 }
 
 func (r *UserRepo) ListAll(ctx context.Context, limit string, offset string) ([]domain.User, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, username, email, phone, password_hash, role, created_at FROM users ORDER BY id OFFSET=$1 LIMIT=$2`, offset, limit)
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, username, email, phone, password_hash, role, created_at FROM users ORDER BY id OFFSET=$1 LIMIT=$2`,
+		offset, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -111,15 +109,15 @@ func (r *UserRepo) CheckDuplicate(ctx context.Context, username, email, phone st
 func (r *UserRepo) CheckPhoneTaken(ctx context.Context, phone string, excludeUserID int) (bool, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM users WHERE phone = $1 AND id != $1`, phone, excludeUserID).Scan(&count)
+		`SELECT COUNT(*) FROM users WHERE phone = $1 AND id != $2`, phone, excludeUserID).Scan(&count)
 	return count > 0, err
 }
+
 func (r *UserRepo) GetUserByBotID(ctx context.Context, botID int) (*domain.User, error) {
 	var u domain.User
 	var userID int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT user_id FROM bots WHERE id = $1`, botID).
-		Scan(&userID)
+		`SELECT user_id FROM bots WHERE id = $1`, botID).Scan(&userID)
 	if err != nil {
 		return nil, err
 	}

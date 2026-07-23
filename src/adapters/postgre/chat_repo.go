@@ -6,12 +6,11 @@ import (
 	"database/sql"
 )
 
-// ChatRepo implements ports.ChatRepository using SQLite.
+// ChatRepo implements ports.ChatRepository using PostgreSQL.
 type ChatRepo struct {
 	db *sql.DB
 }
 
-// NewChatRepo creates a new ChatRepo.
 func NewChatRepo(db *sql.DB) *ChatRepo {
 	return &ChatRepo{db: db}
 }
@@ -38,10 +37,9 @@ func (r *ChatRepo) GetHistory(ctx context.Context, botID int, userJID string, li
 		if err := rows.Scan(&role, &content); err != nil {
 			return nil, err
 		}
-		// Note: content is encrypted — caller decrypts via EncryptionService
 		messages = append(messages, domain.ChatMessage{Role: role, Content: content})
 	}
-	// Reverse to chronological order (DB returns DESC)
+	// Reverse to chronological order
 	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
 		messages[i], messages[j] = messages[j], messages[i]
 	}

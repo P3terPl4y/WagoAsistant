@@ -6,12 +6,11 @@ import (
 	"database/sql"
 )
 
-// BotRepo implements ports.BotRepository using SQLite.
+// BotRepo implements ports.BotRepository using PostgreSQL.
 type BotRepo struct {
 	db *sql.DB
 }
 
-// NewBotRepo creates a new BotRepo.
 func NewBotRepo(db *sql.DB) *BotRepo {
 	return &BotRepo{db: db}
 }
@@ -70,27 +69,26 @@ func (r *BotRepo) Create(ctx context.Context, userID int, sessionFile, paymentSt
 	}
 	defer tx.Rollback()
 
-	res, err := tx.ExecContext(ctx,
-		`INSERT INTO bots (user_id, session_file, payment_status) VALUES ($1, $2, $3)`,
-		userID, sessionFile, paymentStatus)
+	var botID int
+	err = tx.QueryRowContext(ctx,
+		`INSERT INTO bots (user_id, session_file, payment_status) VALUES ($1, $2, $3) RETURNING id`,
+		userID, sessionFile, paymentStatus).Scan(&botID)
 	if err != nil {
 		return 0, err
 	}
 
-	id, err := res.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-
-	// Create default free subscription valid for 30 days
+	// Crear suscripción gratuita por defecto con expiración a 30 días (sintaxis PostgreSQL)
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO subscriptions (bot_id, tier, msg_limit, expires_at) VALUES ($1, 'free', 10, datetime('now', '+30 days'))`,
-		id)
+		`INSERT INTO subscriptions (bot_id, tier, msg_limit, expires_at) VALUES ($1, 'free', 10, CURRENT_DATE + INTERVAL '30 days')`,
+		botID)
 	if err != nil {
 		return 0, err
 	}
 
-	return int(id), tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return 0, err
+	}
+	return botID, nil
 }
 
 func (r *BotRepo) UpdateBlocked(ctx context.Context, id int, blocked bool) error {
