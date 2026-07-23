@@ -78,7 +78,7 @@ func (r *UserRepo) Delete(ctx context.Context, id int) error {
 	return err
 }
 
-func (r *UserRepo) ListAll(ctx context.Context) ([]domain.User, error) {
+func (r *UserRepo) ListAll(ctx context.Context, limit string, offset string) ([]domain.User, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT id, username, email, phone, password_hash, role, created_at FROM users ORDER BY id`)
 	if err != nil {
 		return nil, err

@@ -23,6 +23,23 @@ type BotManager struct {
 	logger logger.Logger
 }
 
+// En el paquete concurrency o en el adaptador de AI
+type RateLimiter struct {
+	mu          sync.Mutex
+	lastCall    time.Time
+	minInterval time.Duration
+}
+
+func (r *RateLimiter) Wait() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	elapsed := time.Since(r.lastCall)
+	if elapsed < r.minInterval {
+		time.Sleep(r.minInterval - elapsed)
+	}
+	r.lastCall = time.Now()
+}
+
 // NewBotManager creates a new BotManager.
 func NewBotManager(log logger.Logger) *BotManager {
 	return &BotManager{

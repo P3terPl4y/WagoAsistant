@@ -34,7 +34,10 @@ func NewAdminHandler(userSvc *app.UserService, botSvc *app.BotService, botRepo p
 }
 
 func (h *AdminHandler) ListUsers(c fiber.Ctx) error {
-	users, err := h.userSvc.ListAll(c)
+	limit := c.Query("limit", "100")
+	offset := c.Query("offset", "0")
+	users, err := h.userSvc.ListAll(c, limit, offset)
+
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Error al obtener usuarios"})
 	}
@@ -133,12 +136,10 @@ func (h *AdminHandler) ConfirmPayment(c fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Error al convertir JID"})
 	}
 	err = h.botSvc.NotifyAdmin(botID, userJID, "Ya puedes iniciar tu Asistente")
-	fmt.Println("YA")
 	if err != nil {
-		fmt.Println(err)
+		h.logger.Error().Err(err).Int("bot_id", botID).Msg("Failed to send payment notification")
 	} else {
-		fmt.Printf("Notificacion enviada a: %s", phone)
-
+		h.logger.Info().Str("phone", phone).Int("bot_id", botID).Msg("Payment notification sent")
 	}
 	return c.JSON(fiber.Map{"status": "ok", "message": "Pago confirmado."})
 }

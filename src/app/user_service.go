@@ -119,8 +119,8 @@ func (s *UserService) GetByUsername(ctx context.Context, username string) (*doma
 }
 
 // ListAll returns all users (admin only).
-func (s *UserService) ListAll(ctx context.Context) ([]domain.User, error) {
-	return s.users.ListAll(ctx)
+func (s *UserService) ListAll(ctx context.Context, limit string, offset string) ([]domain.User, error) {
+	return s.users.ListAll(ctx, limit, offset)
 }
 
 // Delete removes a user by ID.

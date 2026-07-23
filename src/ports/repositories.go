@@ -16,7 +16,7 @@ type UserRepository interface {
 	UpdatePassword(ctx context.Context, userID int, passwordHash string) error
 	UpdatePhone(ctx context.Context, userID int, phone string) error
 	Delete(ctx context.Context, id int) error
-	ListAll(ctx context.Context) ([]domain.User, error)
+	ListAll(ctx context.Context, limit string, offset string) ([]domain.User, error)
 	CountAdmins(ctx context.Context) (int, error)
 	CheckDuplicate(ctx context.Context, username, email, phone string) (bool, error)
 	CheckPhoneTaken(ctx context.Context, phone string, excludeUserID int) (bool, error)
