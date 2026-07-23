@@ -6,7 +6,6 @@ import (
 	adapterRedis "App/src/adapters/redis"
 
 	//"App/src/adapters/sqlite"
-
 	"App/src/adapters/postgre"
 	"App/src/app"
 	"App/src/config"
@@ -20,6 +19,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/gofiber/fiber/v3"
 	fiberLogger "github.com/gofiber/fiber/v3/middleware/logger"
