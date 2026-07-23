@@ -329,15 +329,13 @@ func (s *BotService) respond(client *whatsmeow.Client, userKey string, botID int
 	}
 
 	ctx := context.Background()
-	s.adminMu.RLock()
-	adminBotId := s.AdminBotID
-	s.adminMu.RUnlock()
+
 	// Enforce daily rate limit based on tier
 	if s.cache != nil && s.cache.Available() {
 		sub, err := s.subs.Get(ctx, botID)
 		if err == nil && sub != nil && sub.MsgLimit != -1 {
 			usage, err := s.cache.IncrementUsage(ctx, botID)
-			if err == nil && usage > sub.MsgLimit && botID != adminBotId {
+			if err == nil && usage > sub.MsgLimit && botID != s.AdminBotID {
 				log.Warn().Int("usage", usage).Int("limit", sub.MsgLimit).Msg("Rate limit exceeded")
 				limitMsg := "🤖 Has superado el límite diario de mensajes para tu plan de suscripción."
 				_, _ = client.SendMessage(ctx, recipient, &waE2E.Message{Conversation: &limitMsg})
