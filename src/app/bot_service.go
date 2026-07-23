@@ -91,7 +91,7 @@ func (s *BotService) GetContainer(botID int) *sqlstore.Container {
 	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(on)&_busy_timeout=10000&_journal_mode=WAL",
 		fmt.Sprintf("./src/db/whatsapp_bot%d.db", botID))
 
-	container, err := sqlstore.New(ctx, "sqlite", dsn, dbLog)
+	container, err := sqlstore.New(ctx, "sqlite3", dsn, dbLog)
 	if err != nil {
 		s.logger.Fatal().Err(err).Int("bot_id", botID).Msg("Failed to init session container")
 	}
