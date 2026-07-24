@@ -38,6 +38,7 @@ type BotService struct {
 	cache       ports.CacheService
 	logger      logger.Logger
 	cfg         *config.Config
+	gNotifier   *notifications.GmailNotifier
 
 	// WhatsApp session containers
 	containersMu sync.Mutex
@@ -68,12 +69,13 @@ func NewBotService(
 	cache ports.CacheService,
 	log logger.Logger,
 	cfg *config.Config,
+	gNotifier *notifications.GmailNotifier,
 ) *BotService {
 	return &BotService{
 		bots: bots, prompts: prompts, subs: subs, users: users,
 		chat: chat, ai: ai, botMgr: botMgr, promptCache: promptCache,
 		dedup: dedup, userSem: userSem, cache: cache, logger: log.WithComponent("bot_service"),
-		cfg: cfg, containers: make(map[int]*sqlstore.Container),
+		cfg: cfg, gNotifier: gNotifier, containers: make(map[int]*sqlstore.Container),
 		blocked: make(map[types.JID]bool),
 	}
 }
@@ -325,11 +327,8 @@ func (s *BotService) switchHandler(client *whatsmeow.Client, userKey string, bot
 		s.blocked[recipient] = true
 		s.logger.Info().Int("bot_id", botID).Str("recipient", recipient.String()).Msg("Bot paused")
 	case strings.Contains(txt, "Pedido:") || strings.Contains(txt, "Agendar Cita:"):
-		user, err := s.users.GetUserByBotID(context.Background(), botID)
-		if err != nil {
-			s.logger.Error().Msg(err.Error())
-		}
-		go notifications.NewGmailNotifier().SendNotification(user.Email, "Un cliente quiere hablar contigo", txt)
+
+		go s.gNotifier.SendNotification(botID, "Un cliente quiere hablar contigo", txt)
 	default:
 		go s.respond(client, userKey, botID, recipient, txt)
 	}

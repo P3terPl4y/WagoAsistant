@@ -1,11 +1,11 @@
 package handlers
 
 import (
+	"App/src/adapters/notifications"
 	"App/src/app"
 	"App/src/pkg/concurrency"
 	"App/src/pkg/logger"
 	"App/src/ports"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -14,8 +14,6 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/skip2/go-qrcode"
-	"go.mau.fi/whatsmeow/proto/waE2E"
-	"go.mau.fi/whatsmeow/types"
 )
 
 // BotHandler handles bot-related HTTP endpoints.
@@ -27,10 +25,11 @@ type BotHandler struct {
 	botMgr      *concurrency.BotManager
 	logger      logger.Logger
 	maxBots     int
+	gNotifier   *notifications.GmailNotifier
 }
 
-func NewBotHandler(botSvc *app.BotService, botRepo ports.BotRepository, promptRepo ports.PromptRepository, promptCache *concurrency.PromptCache, botMgr *concurrency.BotManager, log logger.Logger, maxBots int) *BotHandler {
-	return &BotHandler{botSvc: botSvc, botRepo: botRepo, promptRepo: promptRepo, promptCache: promptCache, botMgr: botMgr, logger: log.WithComponent("bot_handler"), maxBots: maxBots}
+func NewBotHandler(botSvc *app.BotService, botRepo ports.BotRepository, promptRepo ports.PromptRepository, promptCache *concurrency.PromptCache, botMgr *concurrency.BotManager, log logger.Logger, maxBots int, gNotifier *notifications.GmailNotifier) *BotHandler {
+	return &BotHandler{botSvc: botSvc, botRepo: botRepo, promptRepo: promptRepo, promptCache: promptCache, botMgr: botMgr, logger: log.WithComponent("bot_handler"), maxBots: maxBots, gNotifier: gNotifier}
 }
 
 func (h *BotHandler) StartBot(c fiber.Ctx) error {
@@ -59,12 +58,9 @@ func (h *BotHandler) StartBot(c fiber.Ctx) error {
 		if h.botMgr.IsActive(bot.ID) {
 			return c.JSON(fiber.Map{"status": "session_exists", "id": bot.ID})
 		}
-		jid, err := types.ParseJID("5351652038" + "@s.whatsapp.net")
-		if err != nil {
-			fmt.Println(err)
-		}
+
 		msg := fmt.Sprintf("Tienes pagos por confirmar")
-		_, err = h.botSvc.AdminClient.SendMessage(context.Background(), jid, &waE2E.Message{Conversation: &msg})
+		err := h.gNotifier.SendAdminNotification(msg, "Ve a confirmar e; pago")
 		if err != nil {
 			fmt.Println(err)
 		}

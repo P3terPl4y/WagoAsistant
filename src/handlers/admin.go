@@ -19,6 +19,7 @@ import (
 type AdminHandler struct {
 	userSvc    *app.UserService
 	botSvc     *app.BotService
+	userRepo   ports.UserRepository
 	botRepo    ports.BotRepository
 	promptRepo ports.PromptRepository
 	botMgr     *concurrency.BotManager
@@ -29,8 +30,8 @@ type AdminHandler struct {
 	gNotifier  *notifications.GmailNotifier
 }
 
-func NewAdminHandler(userSvc *app.UserService, botSvc *app.BotService, botRepo ports.BotRepository, promptRepo ports.PromptRepository, botMgr *concurrency.BotManager, db *sql.DB, cache ports.CacheService, log logger.Logger, maxBots int, gNotifier *notifications.GmailNotifier) *AdminHandler {
-	return &AdminHandler{userSvc: userSvc, botSvc: botSvc, botRepo: botRepo, promptRepo: promptRepo, botMgr: botMgr, db: db, cache: cache, logger: log.WithComponent("admin_handler"), maxBots: maxBots, gNotifier: gNotifier}
+func NewAdminHandler(userSvc *app.UserService, botSvc *app.BotService, userRepo ports.UserRepository, botRepo ports.BotRepository, promptRepo ports.PromptRepository, botMgr *concurrency.BotManager, db *sql.DB, cache ports.CacheService, log logger.Logger, maxBots int, gNotifier *notifications.GmailNotifier) *AdminHandler {
+	return &AdminHandler{userSvc: userSvc, botSvc: botSvc, userRepo: userRepo, botRepo: botRepo, promptRepo: promptRepo, botMgr: botMgr, db: db, cache: cache, logger: log.WithComponent("admin_handler"), maxBots: maxBots, gNotifier: gNotifier}
 }
 
 func (h *AdminHandler) ListUsers(c fiber.Ctx) error {
@@ -122,8 +123,7 @@ func (h *AdminHandler) ConfirmPayment(c fiber.Ctx) error {
 	if err := h.botRepo.UpdatePaymentStatus(c, botID, "paid"); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Error al actualizar estado de pago"})
 	}
-
-	err = h.gNotifier.SendNotification("peterplay333@gmail.com", "Tienes un bot por activar", fmt.Sprintf("Debes activar un bot"))
+	err = h.gNotifier.SendNotification(bot.ID, "Ya puedes activar tu Asistente", fmt.Sprintf("Hola soy tu asistente personal Wago.\n Estoy listo para que me actives "))
 	if err != nil {
 		h.logger.Error().Msg(err.Error())
 	}

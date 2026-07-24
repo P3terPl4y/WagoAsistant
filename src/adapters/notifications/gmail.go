@@ -1,6 +1,8 @@
 package notifications
 
 import (
+	"App/src/ports"
+	"context"
 	"fmt"
 	"net/smtp"
 	"os"
@@ -12,32 +14,56 @@ type GmailNotifier struct {
 	password string
 	smtpHost string
 	smtpPort string
+	userRepo ports.UserRepository
 }
 
 // NewGmailNotifier crea un nuevo notificador con variables de entorno
-func NewGmailNotifier() *GmailNotifier {
+func NewGmailNotifier(userRepo ports.UserRepository) *GmailNotifier {
 	return &GmailNotifier{
 		from:     os.Getenv("GMAIL_FROM"),     // tu-email@gmail.com
 		password: os.Getenv("GMAIL_PASSWORD"), // Contraseña de aplicación
 		smtpHost: "smtp.gmail.com",
 		smtpPort: "587",
+		userRepo: userRepo,
 	}
 }
 
 // SendNotification envía un correo electrónico al destinatario
-func (g *GmailNotifier) SendNotification(to, subject, body string) error {
+func (g *GmailNotifier) SendNotification(toBotID int, subject, body string) error {
+
 	// Autenticación para el servidor SMTP de Gmail
 	auth := smtp.PlainAuth("", g.from, g.password, g.smtpHost)
-
+	user, err := g.userRepo.GetUserByBotID(context.Background(), toBotID)
+	if err != nil {
+		fmt.Println(err)
+	}
 	// Construir el mensaje
 	msg := []byte(fmt.Sprintf("To: %s\r\n"+
 		"Subject: %s\r\n"+
 		"\r\n"+
-		"%s\r\n", to, subject, body))
+		"%s\r\n", user.Email, subject, body))
 
 	// Enviar el correo
 	addr := fmt.Sprintf("%s:%s", g.smtpHost, g.smtpPort)
-	err := smtp.SendMail(addr, auth, g.from, []string{to}, msg)
+	err = smtp.SendMail(addr, auth, g.from, []string{user.Email}, msg)
+	if err != nil {
+		return fmt.Errorf("error al enviar correo: %w", err)
+	}
+	return nil
+}
+func (g *GmailNotifier) SendAdminNotification(subject, body string) error {
+
+	// Autenticación para el servidor SMTP de Gmail
+	auth := smtp.PlainAuth("", g.from, g.password, g.smtpHost)
+	// Construir el mensaje
+	msg := []byte(fmt.Sprintf("To: %s\r\n"+
+		"Subject: %s\r\n"+
+		"\r\n"+
+		"%s\r\n", "elvinfelipetorres@gmail.com", subject, body))
+
+	// Enviar el correo
+	addr := fmt.Sprintf("%s:%s", g.smtpHost, g.smtpPort)
+	err := smtp.SendMail(addr, auth, g.from, []string{"elvinfelipetorres@gmail.com"}, msg)
 	if err != nil {
 		return fmt.Errorf("error al enviar correo: %w", err)
 	}

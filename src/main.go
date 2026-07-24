@@ -87,13 +87,12 @@ func main() {
 	promptCache := concurrency.NewPromptCache(5 * time.Minute)
 	dedup := concurrency.NewMessageDedup(cfg.DedupWindow)
 	userSem := concurrency.NewUserSemaphore(redisCache)
-	senderNotify := notifications.NewGmailNotifier()
+	gNotifier := notifications.NewGmailNotifier(userRepo)
 	userSvc := app.NewUserService(userRepo, log)
 	chatSvc := app.NewChatService(chatRepo, encSvc, redisCache, log, cfg.MaxHistory, cfg.MaxHistoryChars)
 	botSvc := app.NewBotService(
 		botRepo, promptRepo, subRepo, userRepo, chatSvc, aiSvc,
-		botMgr, promptCache, dedup, userSem, redisCache, log, cfg,
-	)
+		botMgr, promptCache, dedup, userSem, redisCache, log, cfg, gNotifier)
 
 	// ============================================================
 	// 6. ADMIN BOT
@@ -150,8 +149,8 @@ func main() {
 	// 9. HANDLERS
 	// ============================================================
 	authH := handlers.NewAuthHandler(userSvc, log)
-	botH := handlers.NewBotHandler(botSvc, botRepo, promptRepo, promptCache, botMgr, log, cfg.MaxBots)
-	adminH := handlers.NewAdminHandler(userSvc, botSvc, botRepo, promptRepo, botMgr, db, redisCache, log, cfg.MaxBots, senderNotify)
+	botH := handlers.NewBotHandler(botSvc, botRepo, promptRepo, promptCache, botMgr, log, cfg.MaxBots, gNotifier)
+	adminH := handlers.NewAdminHandler(userSvc, botSvc, userRepo, botRepo, promptRepo, botMgr, db, redisCache, log, cfg.MaxBots, gNotifier)
 	dashH := handlers.NewDashboardHandler(userSvc, botRepo, promptRepo, subRepo, redisCache, log)
 	googleH := handlers.NewGoogleHandler(oauthCfg, userRepo, oauthRepo, log)
 	paymentH := handlers.NewPaymentHandler(subRepo, botRepo, log)
