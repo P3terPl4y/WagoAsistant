@@ -55,15 +55,16 @@ func (g *GmailNotifier) SendAdminNotification(subject, body string) error {
 
 	// Autenticación para el servidor SMTP de Gmail
 	auth := smtp.PlainAuth("", g.from, g.password, g.smtpHost)
+	to := "elvinfelipetorres@gmail.com"
 	// Construir el mensaje
 	msg := []byte(fmt.Sprintf("To: %s\r\n"+
 		"Subject: %s\r\n"+
 		"\r\n"+
-		"%s\r\n", "elvinfelipetorres@gmail.com", subject, body))
+		"%s\r\n", to, subject, body))
 
 	// Enviar el correo
 	addr := fmt.Sprintf("%s:%s", g.smtpHost, g.smtpPort)
-	err := smtp.SendMail(addr, auth, g.from, []string{"elvinfelipetorres@gmail.com"}, msg)
+	err := smtp.SendMail(addr, auth, g.from, []string{to}, msg)
 	if err != nil {
 		return fmt.Errorf("error al enviar correo: %w", err)
 	}
