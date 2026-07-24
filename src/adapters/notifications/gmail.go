@@ -1,6 +1,7 @@
 package notifications
 
 import (
+	"App/src/pkg/logger"
 	"App/src/ports"
 	"context"
 	"fmt"
@@ -15,16 +16,18 @@ type GmailNotifier struct {
 	smtpHost string
 	smtpPort string
 	userRepo ports.UserRepository
+	log      logger.Logger
 }
 
 // NewGmailNotifier crea un nuevo notificador con variables de entorno
-func NewGmailNotifier(userRepo ports.UserRepository) *GmailNotifier {
+func NewGmailNotifier(userRepo ports.UserRepository, log logger.Logger) *GmailNotifier {
 	return &GmailNotifier{
 		from:     os.Getenv("GMAIL_FROM"),     // tu-email@gmail.com
 		password: os.Getenv("GMAIL_PASSWORD"), // Contraseña de aplicación
 		smtpHost: "smtp.gmail.com",
 		smtpPort: "587",
 		userRepo: userRepo,
+		log:      log,
 	}
 }
 
@@ -35,7 +38,8 @@ func (g *GmailNotifier) SendNotification(toBotID int, subject, body string) erro
 	auth := smtp.PlainAuth("", g.from, g.password, g.smtpHost)
 	user, err := g.userRepo.GetUserByBotID(context.Background(), toBotID)
 	if err != nil {
-		fmt.Println(err)
+		g.log.Error().Msg(err.Error())
+		return fmt.Errorf("error al obtener el correo del destinatario: %w", err)
 	}
 	// Construir el mensaje
 	msg := []byte(fmt.Sprintf("To: %s\r\n"+
@@ -47,6 +51,7 @@ func (g *GmailNotifier) SendNotification(toBotID int, subject, body string) erro
 	addr := fmt.Sprintf("%s:%s", g.smtpHost, g.smtpPort)
 	err = smtp.SendMail(addr, auth, g.from, []string{user.Email}, msg)
 	if err != nil {
+		g.log.Error().Msg(err.Error())
 		return fmt.Errorf("error al enviar correo: %w", err)
 	}
 	return nil
@@ -66,6 +71,7 @@ func (g *GmailNotifier) SendAdminNotification(subject, body string) error {
 	addr := fmt.Sprintf("%s:%s", g.smtpHost, g.smtpPort)
 	err := smtp.SendMail(addr, auth, g.from, []string{to}, msg)
 	if err != nil {
+		g.log.Error().Msg(fmt.Sprintf("Error :%s", err.Error()))
 		return fmt.Errorf("error al enviar correo: %w", err)
 	}
 	return nil

@@ -87,7 +87,7 @@ func main() {
 	promptCache := concurrency.NewPromptCache(5 * time.Minute)
 	dedup := concurrency.NewMessageDedup(cfg.DedupWindow)
 	userSem := concurrency.NewUserSemaphore(redisCache)
-	gNotifier := notifications.NewGmailNotifier(userRepo)
+	gNotifier := notifications.NewGmailNotifier(userRepo, log)
 	userSvc := app.NewUserService(userRepo, log)
 	chatSvc := app.NewChatService(chatRepo, encSvc, redisCache, log, cfg.MaxHistory, cfg.MaxHistoryChars)
 	botSvc := app.NewBotService(
