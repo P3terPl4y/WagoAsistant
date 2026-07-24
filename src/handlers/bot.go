@@ -62,7 +62,7 @@ func (h *BotHandler) StartBot(c fiber.Ctx) error {
 		msg := fmt.Sprintf("Tienes pagos por confirmar")
 		err := h.gNotifier.SendAdminNotification(msg, "Ve a confirmar el pago")
 		if err != nil {
-			fmt.Println(err)
+			h.logger.Error().Msg(err.Error())
 		}
 		fmt.Println("Enviando notificacion a admin")
 		return h.LaunchBot(c, bot.ID)
