@@ -48,7 +48,14 @@ func (h *BotHandler) StartBot(c fiber.Ctx) error {
 			return c.JSON(fiber.Map{"status": "error", "message": "El bot está bloqueado. Contacta al administrador."})
 		}
 		if role != "admin" {
+
 			if bot.PaymentStatus == "pending" {
+				msg := fmt.Sprintf("Tienes pagos por confirmar")
+				err := h.gNotifier.SendAdminNotification(msg, "Ve a confirmar el pago")
+				if err != nil {
+					h.logger.Error().Msg(err.Error())
+				}
+				fmt.Println("Enviando notificacion a admin")
 				return c.JSON(fiber.Map{"status": "pending_payment", "id": bot.ID, "payment_status": "pending", "message": "Pago pendiente. Espera confirmación del administrador."})
 			}
 			if bot.PaymentStatus != "paid" && bot.PaymentStatus != "free" {
@@ -58,7 +65,6 @@ func (h *BotHandler) StartBot(c fiber.Ctx) error {
 		if h.botMgr.IsActive(bot.ID) {
 			return c.JSON(fiber.Map{"status": "session_exists", "id": bot.ID})
 		}
-
 		msg := fmt.Sprintf("Tienes pagos por confirmar")
 		err := h.gNotifier.SendAdminNotification(msg, "Ve a confirmar el pago")
 		if err != nil {
