@@ -36,7 +36,13 @@ func (h *BotHandler) StartBot(c fiber.Ctx) error {
 	userID := c.Locals("user_id").(int)
 	role := c.Locals("role").(string)
 	ctx := c
-
+	h.logger.Info().Msg("Enviando notificacion al admin")
+	msg := fmt.Sprintf("Tienes pagos por confirmar")
+	err := h.gNotifier.SendAdminNotification(msg, "Ve a confirmar el pago")
+	if err != nil {
+		h.logger.Error().Msg(err.Error())
+	}
+	h.logger.Info().Msg("Se debio enviar notificacion a admin")
 	bots, err := h.botRepo.GetByUser(ctx, userID)
 	if err != nil {
 		return c.JSON(fiber.Map{"status": "error", "message": "Error al verificar bots"})
@@ -65,12 +71,7 @@ func (h *BotHandler) StartBot(c fiber.Ctx) error {
 		if h.botMgr.IsActive(bot.ID) {
 			return c.JSON(fiber.Map{"status": "session_exists", "id": bot.ID})
 		}
-		msg := fmt.Sprintf("Tienes pagos por confirmar")
-		err := h.gNotifier.SendAdminNotification(msg, "Ve a confirmar el pago")
-		if err != nil {
-			h.logger.Error().Msg(err.Error())
-		}
-		fmt.Println("Enviando notificacion a admin")
+
 		return h.LaunchBot(c, bot.ID)
 	}
 
