@@ -329,6 +329,7 @@ func (s *BotService) switchHandler(client *whatsmeow.Client, userKey string, bot
 	case strings.Contains(txt, "Pedido:") || strings.Contains(txt, "Agendar Cita:"):
 
 		go s.gNotifier.SendNotification(botID, "Un cliente quiere hablar contigo", txt)
+		go s.NotifyAdmin(botID, recipient, txt)
 	default:
 		go s.respond(client, userKey, botID, recipient, txt)
 	}
@@ -445,11 +446,8 @@ func (s *BotService) NotifyAdmin(botID int, clientJID types.JID, msg string) err
 		return fmt.Errorf("Admin bot not available")
 	}
 	ctx := context.Background()
-	bot, err := s.bots.GetByID(ctx, botID)
-	if err != nil || bot == nil {
-		return err
-	}
-	user, err := s.users.GetByID(ctx, bot.UserID)
+
+	user, err := s.users.GetUserByBotID(ctx, botID)
 	if err != nil || user == nil {
 		return err
 	}
@@ -476,11 +474,9 @@ func (s *BotService) NotifyAdmin(botID int, clientJID types.JID, msg string) err
 			notif = msg
 			_, err = client.SendMessage(context.Background(), userJID, &waE2E.Message{Conversation: &notif})
 			if err != nil {
-				fmt.Println("SSSS")
 				continue
 			} else {
 				s.logger.Info().Str("phone", user.Phone).Int("bot_id", botID).Msg("Notification sent to bot owner")
-				fmt.Println("YYYYYY")
 				break
 			}
 		} else {
