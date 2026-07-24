@@ -29,7 +29,6 @@ type AdminRepository interface {
 // BotRepository defines the contract for bot data access.
 type BotRepository interface {
 	GetByID(ctx context.Context, id int) (*domain.Bot, error)
-
 	GetByUser(ctx context.Context, userID int) ([]domain.Bot, error)
 	GetAll(ctx context.Context) ([]domain.Bot, error)
 	Create(ctx context.Context, userID int, sessionFile, paymentStatus string) (int, error)

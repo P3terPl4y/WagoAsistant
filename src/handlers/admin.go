@@ -26,10 +26,11 @@ type AdminHandler struct {
 	cache      ports.CacheService
 	logger     logger.Logger
 	maxBots    int
+	gNotifier  *notifications.GmailNotifier
 }
 
-func NewAdminHandler(userSvc *app.UserService, botSvc *app.BotService, botRepo ports.BotRepository, promptRepo ports.PromptRepository, botMgr *concurrency.BotManager, db *sql.DB, cache ports.CacheService, log logger.Logger, maxBots int) *AdminHandler {
-	return &AdminHandler{userSvc: userSvc, botSvc: botSvc, botRepo: botRepo, promptRepo: promptRepo, botMgr: botMgr, db: db, cache: cache, logger: log.WithComponent("admin_handler"), maxBots: maxBots}
+func NewAdminHandler(userSvc *app.UserService, botSvc *app.BotService, botRepo ports.BotRepository, promptRepo ports.PromptRepository, botMgr *concurrency.BotManager, db *sql.DB, cache ports.CacheService, log logger.Logger, maxBots int, gNotifier *notifications.GmailNotifier) *AdminHandler {
+	return &AdminHandler{userSvc: userSvc, botSvc: botSvc, botRepo: botRepo, promptRepo: promptRepo, botMgr: botMgr, db: db, cache: cache, logger: log.WithComponent("admin_handler"), maxBots: maxBots, gNotifier: gNotifier}
 }
 
 func (h *AdminHandler) ListUsers(c fiber.Ctx) error {
@@ -122,7 +123,7 @@ func (h *AdminHandler) ConfirmPayment(c fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Error al actualizar estado de pago"})
 	}
 
-	err = notifications.NewGmailNotifier().SendNotification("peterplay333@gmail.com", "Tienes un bot por activar", fmt.Sprintf("Debes activar un bot"))
+	err = h.gNotifier.SendNotification("peterplay333@gmail.com", "Tienes un bot por activar", fmt.Sprintf("Debes activar un bot"))
 	if err != nil {
 		h.logger.Error().Msg(err.Error())
 	}
